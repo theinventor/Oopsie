@@ -50,3 +50,4 @@
 .ralph/.ralph_session_history
 .ralph/.call_count
 .ralph/.token_count
+.gstack/
