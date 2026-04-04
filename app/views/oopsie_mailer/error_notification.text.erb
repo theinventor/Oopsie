@@ -1,0 +1,16 @@
+<%= @is_regression ? "REGRESSION" : "NEW ERROR" %> in <%= @project.name %>
+
+Error: <%= @error_group.error_class %>
+Message: <%= @error_group.message %>
+Environment: <%= @occurrence.environment || "unknown" %>
+Occurrences: <%= @error_group.occurrences_count %>
+
+<% backtrace = @occurrence.backtrace %>
+<% backtrace = JSON.parse(backtrace) if backtrace.is_a?(String) rescue [] %>
+<% if backtrace.present? && backtrace.is_a?(Array) %>
+Backtrace:
+<% backtrace.first(10).each do |frame| %>  <%= frame %>
+<% end %>
+<% end %>
+
+View in Oopsie: <%= @url %>

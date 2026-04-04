@@ -18,7 +18,7 @@ Based on the approved design doc at `~/.gstack/projects/theinventor-Oopsie/troy-
 - [x] **Task 8: Settings page** — project API key display with Bearer header example, notification rule CRUD (email/webhook), enable/disable toggle. 10 new tests.
 
 ## Phase 4: Notifications & Background Jobs
-- [ ] Task 9: Notification system — ActionMailer + webhook via Solid Queue on new/regression groups
+- [x] **Task 9: Notification system** — OopsieMailer (HTML+text), NotifyJob dispatches to email/webhook rules, WebhookDeliveryJob with retry, API enqueues on new group/regression. 10 new tests.
 - [ ] Task 10: Retention job — Solid Queue recurring task for occurrence cleanup (90-day default)
 
 ## Phase 5: Polish

@@ -169,4 +169,34 @@ class Api::V1::ExceptionsControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :unprocessable_entity
   end
+
+  # --- Notification tests ---
+
+  test "enqueues NotifyJob on new error group" do
+    assert_enqueued_with(job: NotifyJob) do
+      post api_v1_exceptions_url, params: @valid_payload.to_json, headers: @headers
+    end
+    assert_response :created
+  end
+
+  test "enqueues NotifyJob on regression" do
+    post api_v1_exceptions_url, params: @valid_payload.to_json, headers: @headers
+    group = ErrorGroup.find(JSON.parse(response.body)["group_id"])
+    group.update!(status: :resolved)
+
+    assert_enqueued_with(job: NotifyJob) do
+      post api_v1_exceptions_url, params: @valid_payload.to_json, headers: @headers
+    end
+  end
+
+  test "does not enqueue NotifyJob on repeat occurrence" do
+    post api_v1_exceptions_url, params: @valid_payload.to_json, headers: @headers
+
+    # Clear queue from new group notification
+    queue_adapter.enqueued_jobs.clear
+
+    assert_no_enqueued_jobs(only: NotifyJob) do
+      post api_v1_exceptions_url, params: @valid_payload.to_json, headers: @headers
+    end
+  end
 end

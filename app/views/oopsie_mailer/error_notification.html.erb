@@ -1,0 +1,40 @@
+<h2 style="font-family: -apple-system, sans-serif; color: #1a1a2e;">
+  <% if @is_regression %>
+    Regression in <%= @project.name %>
+  <% else %>
+    New error in <%= @project.name %>
+  <% end %>
+</h2>
+
+<table style="font-family: -apple-system, sans-serif; border-collapse: collapse; margin: 16px 0;">
+  <tr>
+    <td style="padding: 4px 12px 4px 0; color: #6c757d; font-size: 14px;">Error</td>
+    <td style="padding: 4px 0; font-weight: 600;"><%= @error_group.error_class %></td>
+  </tr>
+  <tr>
+    <td style="padding: 4px 12px 4px 0; color: #6c757d; font-size: 14px;">Message</td>
+    <td style="padding: 4px 0;"><%= @error_group.message %></td>
+  </tr>
+  <tr>
+    <td style="padding: 4px 12px 4px 0; color: #6c757d; font-size: 14px;">Environment</td>
+    <td style="padding: 4px 0;"><%= @occurrence.environment || "unknown" %></td>
+  </tr>
+  <tr>
+    <td style="padding: 4px 12px 4px 0; color: #6c757d; font-size: 14px;">Occurrences</td>
+    <td style="padding: 4px 0;"><%= @error_group.occurrences_count %></td>
+  </tr>
+</table>
+
+<% backtrace = @occurrence.backtrace %>
+<% backtrace = JSON.parse(backtrace) if backtrace.is_a?(String) rescue [] %>
+<% if backtrace.present? && backtrace.is_a?(Array) %>
+  <h3 style="font-family: -apple-system, sans-serif; color: #1a1a2e; margin-top: 24px;">Backtrace</h3>
+  <pre style="background: #f8f9fa; padding: 12px; border-radius: 4px; font-size: 13px; overflow-x: auto; border: 1px solid #dee2e6;"><% backtrace.first(10).each do |frame| %><%= frame %>
+<% end %></pre>
+<% end %>
+
+<p style="margin-top: 24px;">
+  <a href="<%= @url %>" style="background: #e63946; color: #fff; padding: 10px 20px; border-radius: 4px; text-decoration: none; font-weight: 600; font-family: -apple-system, sans-serif;">
+    View in Oopsie
+  </a>
+</p>

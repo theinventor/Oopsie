@@ -56,6 +56,15 @@ module Api
           notifier_version: params[:version]
         )
 
+        # Notify on new error groups or regressions
+        if is_new_group || was_resolved
+          NotifyJob.perform_later(
+            error_group_id: error_group.id,
+            occurrence_id: occurrence.id,
+            is_regression: was_resolved
+          )
+        end
+
         render json: {
           id: occurrence.id,
           group_id: error_group.id,
