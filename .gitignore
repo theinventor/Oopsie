@@ -41,3 +41,12 @@
 .vscode/
 *.swp
 *.swo
+
+# Ralph runtime files (keep config, ignore state)
+.ralph/logs/
+.ralph/docs/generated/
+.ralph/status.json
+.ralph/.ralph_session
+.ralph/.ralph_session_history
+.ralph/.call_count
+.ralph/.token_count
