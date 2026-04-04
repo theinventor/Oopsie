@@ -128,4 +128,45 @@ class Api::V1::ExceptionsControllerTest < ActionDispatch::IntegrationTest
 
     assert_equal 3, ErrorGroup.find(group_id).occurrences_count
   end
+
+  # --- 422 Unprocessable Entity tests ---
+
+  test "returns 422 when error object is missing" do
+    payload = { notifier: "ExceptionReporter", version: "1.0.0" }
+
+    post api_v1_exceptions_url, params: payload.to_json, headers: @headers
+
+    assert_response :unprocessable_entity
+    json = JSON.parse(response.body)
+    assert_equal "Unprocessable Entity", json["error"]
+    assert_includes json["details"], "Missing error object"
+  end
+
+  test "returns 422 when error.class_name is missing" do
+    payload = @valid_payload.deep_dup
+    payload[:error].delete(:class_name)
+
+    post api_v1_exceptions_url, params: payload.to_json, headers: @headers
+
+    assert_response :unprocessable_entity
+    json = JSON.parse(response.body)
+    assert_includes json["details"], "Missing error.class_name"
+  end
+
+  test "returns 422 when error.class_name is blank" do
+    payload = @valid_payload.deep_dup
+    payload[:error][:class_name] = ""
+
+    post api_v1_exceptions_url, params: payload.to_json, headers: @headers
+
+    assert_response :unprocessable_entity
+    json = JSON.parse(response.body)
+    assert_includes json["details"], "Missing error.class_name"
+  end
+
+  test "returns 422 with empty body" do
+    post api_v1_exceptions_url, params: "".to_json, headers: @headers
+
+    assert_response :unprocessable_entity
+  end
 end

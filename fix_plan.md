@@ -9,7 +9,7 @@ Based on the approved design doc at `~/.gstack/projects/theinventor-Oopsie/troy-
 
 ## Phase 2: API
 - [x] **Task 3: Build POST /api/v1/exceptions endpoint** — fingerprinting, grouping, rate limiting (100/min/project), Bearer token auth, regression detection (resolved→unresolved). 9 integration tests.
-- [ ] Task 4: Add API error handling (422 for malformed payloads — 401/429 already covered in Task 3)
+- [x] **Task 4: Add API error handling** — 422 for missing error object or error.class_name, rescue_from for ActiveRecord validation failures. 4 new tests.
 
 ## Phase 3: Web UI
 - [ ] Task 5: Dashboard — list of projects with unresolved error counts

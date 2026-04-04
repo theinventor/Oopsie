@@ -3,9 +3,14 @@ module Api
     class ExceptionsController < ActionController::API
       before_action :authenticate_project!
       before_action :check_rate_limit!
+      before_action :validate_payload!
+
+      rescue_from ActiveRecord::RecordInvalid do |e|
+        render json: { error: "Unprocessable Entity", details: e.record.errors.full_messages }, status: :unprocessable_entity
+      end
 
       def create
-        error = params[:error] || {}
+        error = params[:error]
         first_line = error[:first_line]&.permit(:file, :line, :method)&.to_h
 
         fingerprint = ErrorGroup.generate_fingerprint(
@@ -72,6 +77,18 @@ module Api
 
         unless @project
           render json: { error: "Invalid API key" }, status: :unauthorized
+        end
+      end
+
+      def validate_payload!
+        errors = []
+        errors << "Missing error object" unless params[:error].is_a?(ActionController::Parameters)
+        if params[:error].is_a?(ActionController::Parameters)
+          errors << "Missing error.class_name" unless params[:error][:class_name].present?
+        end
+
+        if errors.any?
+          render json: { error: "Unprocessable Entity", details: errors }, status: :unprocessable_entity
         end
       end
 
