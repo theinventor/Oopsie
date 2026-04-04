@@ -24,7 +24,7 @@ Based on the approved design doc at `~/.gstack/projects/theinventor-Oopsie/troy-
 ## Phase 5: Polish
 - [x] **Task 11: Seed data and bin/setup** — Demo project with 3 error groups (unresolved/resolved/ignored), 9 sample occurrences, email notification rule, curl example in seed output. bin/setup with ASCII art banner and streamlined flow.
 - [x] **Task 12: README** — Quick start, API docs with full payload example, curl example, env var config table, fingerprinting explanation, notification behavior, retention docs, deploy instructions (Fly.io + VPS), development commands.
-- [ ] Task 13: ExceptionReporter payload spec docs
+- [x] **Task 13: ExceptionReporter payload spec** — Full webhook payload reference at docs/exception_reporter_webhook_payload.md. Covers all top-level fields, error/context/server objects, minimum valid payload, forward compatibility, fingerprinting mapping, and rate limiting.
 
 ## Notes
 - SQLite in WAL mode (Rails 8.1 default)
