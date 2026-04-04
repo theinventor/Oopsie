@@ -1,0 +1,64 @@
+<% content_for(:title) { "Oopsie — Exception Tracking for Solo Developers" } %>
+
+<div class="hero">
+  <h1>Exception tracking<br>for solo developers</h1>
+  <p class="hero-sub">Self-hosted, zero dependencies. Drop it into your Rails app and know the moment something breaks.</p>
+  <div class="hero-actions">
+    <%= link_to "Sign in", new_session_path, class: "btn btn-primary" %>
+    <%= link_to "Get the CLI", cli_path, class: "btn btn-secondary" %>
+  </div>
+</div>
+
+<div class="features">
+  <div class="card feature-card">
+    <h3>Report exceptions</h3>
+    <p>Send errors from any app via a simple JSON API. Oopsie groups them by fingerprint, tracks occurrences, and detects regressions.</p>
+    <pre><code>POST /api/v1/exceptions
+Authorization: Bearer YOUR_API_KEY
+
+{
+  "error": {
+    "class_name": "NoMethodError",
+    "message": "undefined method 'foo'",
+    "backtrace": ["app/models/user.rb:42"]
+  }
+}</code></pre>
+  </div>
+
+  <div class="card feature-card">
+    <h3>Manage from the CLI</h3>
+    <p>List errors, view details, resolve or archive them, all from the command line. AI bots can use it too.</p>
+    <pre><code>$ oopsie errors
+  #12  [OPEN]  NoMethodError
+       undefined method 'foo' for nil
+       47 occurrences · last seen 2h ago
+
+$ oopsie resolve 12
+Resolved error group #12.</code></pre>
+    <p style="margin-top: 0.75rem;"><%= link_to "Install the CLI →", cli_path %></p>
+  </div>
+
+  <div class="card feature-card">
+    <h3>Get notified</h3>
+    <p>Email or webhook notifications for new errors and regressions. Never hear about the same known issue twice.</p>
+  </div>
+</div>
+
+<div class="home-section">
+  <h2>API at a glance</h2>
+  <p>Every feature is available via the REST API. Bearer token auth, JSON in and out.</p>
+  <table class="cli-commands-table">
+    <thead>
+      <tr><th>Method</th><th>Endpoint</th><th>What it does</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>POST</code></td><td><code>/api/v1/exceptions</code></td><td>Report an exception</td></tr>
+      <tr><td><code>GET</code></td><td><code>/api/v1/project</code></td><td>Project info and counts</td></tr>
+      <tr><td><code>GET</code></td><td><code>/api/v1/error_groups</code></td><td>List errors (filter by status)</td></tr>
+      <tr><td><code>GET</code></td><td><code>/api/v1/error_groups/:id</code></td><td>Error details + occurrences</td></tr>
+      <tr><td><code>PATCH</code></td><td><code>/api/v1/error_groups/:id/resolve</code></td><td>Mark resolved</td></tr>
+      <tr><td><code>PATCH</code></td><td><code>/api/v1/error_groups/:id/ignore</code></td><td>Archive</td></tr>
+      <tr><td><code>PATCH</code></td><td><code>/api/v1/error_groups/:id/unresolve</code></td><td>Reopen</td></tr>
+    </tbody>
+  </table>
+</div>

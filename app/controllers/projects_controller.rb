@@ -1,6 +1,14 @@
 class ProjectsController < ApplicationController
   before_action :set_project, only: [ :show, :edit, :update, :destroy, :settings ]
 
+  def index
+    @projects = Project.left_joins(:error_groups)
+      .where(error_groups: { status: [ :unresolved, nil ] })
+      .select("projects.*, COUNT(error_groups.id) AS unresolved_count")
+      .group("projects.id")
+      .order("projects.name ASC")
+  end
+
   def show
     @error_groups = @project.error_groups.by_last_seen
   end
@@ -18,7 +26,7 @@ class ProjectsController < ApplicationController
     @project = Project.new(project_params)
 
     if @project.save
-      redirect_to root_path, notice: "Project created."
+      redirect_to projects_path, notice: "Project created."
     else
       render :new, status: :unprocessable_entity
     end
@@ -37,7 +45,7 @@ class ProjectsController < ApplicationController
 
   def destroy
     @project.destroy
-    redirect_to root_path, notice: "Project deleted."
+    redirect_to projects_path, notice: "Project deleted."
   end
 
   private

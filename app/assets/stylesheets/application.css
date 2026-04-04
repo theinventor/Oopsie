@@ -697,6 +697,86 @@ body > main.container > form input[type="password"] {
    ═══════════════════════════════════════════ */
 
 /* ═══════════════════════════════════════════
+   Homepage
+   ═══════════════════════════════════════════ */
+
+.hero {
+  text-align: center;
+  padding: 4rem 0 3rem;
+}
+.hero h1 {
+  font-size: 2.5rem;
+  font-weight: 800;
+  color: #fff;
+  margin: 0 0 1rem;
+  line-height: 1.15;
+}
+.hero-sub {
+  font-size: 1.1rem;
+  color: var(--text-secondary);
+  max-width: 480px;
+  margin: 0 auto 2rem;
+  line-height: 1.6;
+}
+.hero-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+}
+
+.features {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.25rem;
+  margin-bottom: 2.5rem;
+}
+.feature-card {
+  display: flex;
+  flex-direction: column;
+}
+.feature-card h3 {
+  font-size: 1rem;
+  color: #fff;
+  margin: 0 0 0.5rem;
+}
+.feature-card p {
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin: 0 0 0.75rem;
+}
+.feature-card pre {
+  background: var(--bg-inset);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 0.75rem;
+  overflow-x: auto;
+  margin: 0;
+  flex: 1;
+}
+.feature-card pre code {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--text);
+  background: none;
+  padding: 0;
+}
+
+.home-section {
+  margin-bottom: 3rem;
+}
+.home-section h2 {
+  font-size: 1.25rem;
+  color: #fff;
+  margin: 0 0 0.5rem;
+}
+.home-section > p {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  margin: 0 0 1rem;
+}
+
+/* ═══════════════════════════════════════════
    Page Header Actions
    ═══════════════════════════════════════════ */
 
