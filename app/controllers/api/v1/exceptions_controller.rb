@@ -47,9 +47,9 @@ module Api
           first_line: first_line,
           causes: error[:causes],
           handled: error[:handled] || false,
-          context: params[:context]&.permit!&.to_h,
+          context: context_params,
           environment: params.dig(:app, :environment),
-          server_info: params[:server]&.permit!&.to_h,
+          server_info: server_params,
           occurred_at: params[:timestamp] || Time.current,
           notifier_version: params[:version]
         )
@@ -71,6 +71,20 @@ module Api
       end
 
       private
+
+      def context_params
+        parsed_body["context"] if parsed_body["context"].is_a?(Hash)
+      end
+
+      def server_params
+        parsed_body["server"] if parsed_body["server"].is_a?(Hash)
+      end
+
+      def parsed_body
+        @parsed_body ||= JSON.parse(request.raw_post)
+      rescue JSON::ParserError
+        {}
+      end
 
       def validate_payload!
         errors = []
