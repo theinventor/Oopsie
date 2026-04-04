@@ -291,3 +291,26 @@ a:hover { color: var(--accent-hover); }
   white-space: pre-wrap;
   word-break: break-word;
 }
+
+/* API key display */
+.api-key-display {
+  display: block;
+  padding: 0.5rem 0.75rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 0.85rem;
+  word-break: break-all;
+  user-select: all;
+}
+
+/* Form select */
+.form-select {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font: inherit;
+  font-size: 0.9rem;
+  background: var(--surface);
+}

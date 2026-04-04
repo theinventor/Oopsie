@@ -1,8 +1,13 @@
 class ProjectsController < ApplicationController
-  before_action :set_project, only: [ :show, :edit, :update, :destroy ]
+  before_action :set_project, only: [ :show, :edit, :update, :destroy, :settings ]
 
   def show
     @error_groups = @project.error_groups.by_last_seen
+  end
+
+  def settings
+    @notification_rules = @project.notification_rules.order(:created_at)
+    @notification_rule = @project.notification_rules.build
   end
 
   def new

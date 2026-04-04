@@ -1,0 +1,23 @@
+<%= form_with(model: [ project, notification_rule ], class: "card", style: "padding: 1rem 1.25rem; max-width: 480px;") do |f| %>
+  <div class="form-group">
+    <%= f.label :channel %>
+    <%= f.select :channel, NotificationRule.channels.keys.map { |k| [k.titleize, k] },
+        {}, class: "form-select" %>
+    <% if notification_rule.errors[:channel].any? %>
+      <div class="field-errors"><%= notification_rule.errors[:channel].join(", ") %></div>
+    <% end %>
+  </div>
+
+  <div class="form-group">
+    <%= f.label :destination, "Destination (email address or webhook URL)" %>
+    <%= f.text_field :destination, placeholder: "alerts@example.com or https://hooks.slack.com/..." %>
+    <% if notification_rule.errors[:destination].any? %>
+      <div class="field-errors"><%= notification_rule.errors[:destination].join(", ") %></div>
+    <% end %>
+  </div>
+
+  <div style="display: flex; gap: 0.5rem;">
+    <%= f.submit class: "btn btn-primary" %>
+    <%= link_to "Cancel", settings_project_path(project), class: "btn btn-secondary" %>
+  </div>
+<% end %>

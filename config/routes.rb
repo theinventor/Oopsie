@@ -2,11 +2,19 @@ Rails.application.routes.draw do
   resource :session
   resources :passwords, param: :token
   resources :projects do
+    member do
+      get :settings
+    end
     resources :error_groups, only: [ :show ] do
       member do
         patch :resolve
         patch :ignore
         patch :unresolve
+      end
+    end
+    resources :notification_rules, only: [ :create, :edit, :update, :destroy ] do
+      member do
+        patch :toggle
       end
     end
   end

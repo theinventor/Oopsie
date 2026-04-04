@@ -1,0 +1,68 @@
+<div class="page-header">
+  <div>
+    <div style="font-size: 0.8rem; margin-bottom: 0.25rem;">
+      <%= link_to @project.name, project_path(@project) %> &rsaquo; Settings
+    </div>
+    <h1>Settings</h1>
+  </div>
+</div>
+
+<h2 class="section-title">API Key</h2>
+<div class="card" style="padding: 1rem 1.25rem;">
+  <p style="margin: 0 0 0.5rem; font-size: 0.85rem; color: var(--text-muted);">
+    Use this key in your ExceptionReporter webhook configuration.
+  </p>
+  <code class="api-key-display"><%= @project.api_key %></code>
+  <p style="margin: 0.75rem 0 0; font-size: 0.8rem; color: var(--text-muted);">
+    <strong>Authorization header:</strong>
+    <code>Bearer <%= @project.api_key %></code>
+  </p>
+</div>
+
+<h2 class="section-title">Notification Rules</h2>
+<p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">
+  Notifications fire when a <strong>new</strong> error group appears or a <strong>resolved</strong> group regresses.
+</p>
+
+<% if @notification_rules.any? %>
+  <div class="card" style="overflow-x: auto; margin-bottom: 1rem;">
+    <table class="error-table">
+      <thead>
+        <tr>
+          <th>Channel</th>
+          <th>Destination</th>
+          <th>Status</th>
+          <th style="text-align: right;">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @notification_rules.each do |rule| %>
+          <tr>
+            <td><span class="badge badge-<%= rule.email? ? 'muted' : 'muted' %>"><%= rule.channel %></span></td>
+            <td><code style="font-size: 0.85rem;"><%= rule.destination %></code></td>
+            <td>
+              <% if rule.enabled? %>
+                <span style="color: var(--success); font-weight: 600;">Enabled</span>
+              <% else %>
+                <span style="color: var(--text-muted);">Disabled</span>
+              <% end %>
+            </td>
+            <td style="text-align: right; white-space: nowrap;">
+              <%= button_to rule.enabled? ? "Disable" : "Enable",
+                  toggle_project_notification_rule_path(@project, rule),
+                  method: :patch, class: "btn btn-sm btn-secondary" %>
+              <%= link_to "Edit", edit_project_notification_rule_path(@project, rule),
+                  class: "btn btn-sm btn-secondary" %>
+              <%= button_to "Delete", project_notification_rule_path(@project, rule),
+                  method: :delete, class: "btn btn-sm btn-danger",
+                  data: { turbo_confirm: "Delete this notification rule?" } %>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+<% end %>
+
+<h3 style="font-size: 0.9rem; margin-bottom: 0.5rem;">Add Notification Rule</h3>
+<%= render "notification_rules/form", project: @project, notification_rule: @notification_rule %>
