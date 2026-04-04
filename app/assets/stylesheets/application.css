@@ -116,6 +116,8 @@ h1, h2, h3 { font-weight: 600; letter-spacing: -0.02em; }
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  padding: 0.5rem 0;
+  min-height: 44px;
 }
 .nav-brand::before {
   content: "";
@@ -134,9 +136,12 @@ h1, h2, h3 { font-weight: 600; letter-spacing: -0.02em; }
   color: var(--text-secondary);
   font-size: 0.8rem;
   font-weight: 500;
-  padding: 0.4rem 0.75rem;
+  padding: 0.5rem 0.75rem;
   border-radius: var(--radius-sm);
   transition: all 0.15s;
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
 }
 .nav-links a:hover,
 .nav-links .btn-link:hover {
@@ -220,6 +225,7 @@ h1, h2, h3 { font-weight: 600; letter-spacing: -0.02em; }
   transition: all 0.15s;
   gap: 0.35rem;
   white-space: nowrap;
+  min-height: 36px;
 }
 .btn-primary {
   background: var(--red);
@@ -395,7 +401,7 @@ input[type="submit"] {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0.6rem 1.25rem;
+  padding: 0.75rem 1.25rem;
   border-radius: var(--radius-sm);
   font-size: 0.85rem;
   font-weight: 600;
@@ -405,6 +411,7 @@ input[type="submit"] {
   color: #fff;
   transition: all 0.15s;
   margin-top: 0.5rem;
+  min-height: 44px;
 }
 input[type="submit"]:hover {
   background: var(--red-hover);
