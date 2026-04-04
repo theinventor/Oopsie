@@ -1,9 +1,16 @@
-# This file should ensure the existence of records required to run the application in every environment (production,
-# development, test). The code here should be idempotent so that it can be executed at any point in every environment.
-# The data can then be loaded with the bin/rails db:seed command (or created alongside the database with db:setup).
-#
-# Example:
-#
-#   ["Action", "Comedy", "Drama", "Horror"].each do |genre_name|
-#     MovieGenre.find_or_create_by!(name: genre_name)
-#   end
+# Create the initial admin user if none exists.
+# Credentials come from environment variables or defaults.
+if User.none?
+  email = ENV.fetch("OOPSIE_ADMIN_EMAIL", "admin@example.com")
+  password = ENV.fetch("OOPSIE_ADMIN_PASSWORD") { SecureRandom.base58(16) }
+
+  User.create!(email_address: email, password: password, password_confirmation: password)
+
+  puts ""
+  puts "=" * 60
+  puts "  Oopsie admin user created!"
+  puts "  Email:    #{email}"
+  puts "  Password: #{password}"
+  puts "=" * 60
+  puts ""
+end

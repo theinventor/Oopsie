@@ -1,0 +1,19 @@
+nomethoderror:
+  project: myapp
+  fingerprint: abc123fingerprint
+  error_class: NoMethodError
+  message: "undefined method 'foo' for nil"
+  status: 0
+  occurrences_count: 3
+  first_seen_at: <%= 2.days.ago.to_fs(:db) %>
+  last_seen_at: <%= 1.hour.ago.to_fs(:db) %>
+
+resolved_error:
+  project: myapp
+  fingerprint: def456fingerprint
+  error_class: ArgumentError
+  message: "wrong number of arguments"
+  status: 1
+  occurrences_count: 1
+  first_seen_at: <%= 5.days.ago.to_fs(:db) %>
+  last_seen_at: <%= 3.days.ago.to_fs(:db) %>

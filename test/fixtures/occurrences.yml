@@ -1,0 +1,12 @@
+first:
+  error_group: nomethoderror
+  message: "undefined method 'foo' for nil"
+  backtrace: '["app/models/user.rb:42:in ''load''", "app/controllers/users_controller.rb:10:in ''show''"]'
+  first_line: '{"file": "app/models/user.rb", "line": 42, "method": "load"}'
+  causes: '[]'
+  handled: false
+  context: '{"request": {"url": "/users/1"}}'
+  environment: production
+  server_info: '{"hostname": "web-1", "pid": 12345}'
+  occurred_at: <%= 1.hour.ago.to_fs(:db) %>
+  notifier_version: "1.0.0"

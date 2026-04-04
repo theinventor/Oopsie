@@ -1,0 +1,5 @@
+email_rule:
+  project: myapp
+  channel: 0
+  destination: admin@example.com
+  enabled: true
