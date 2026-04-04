@@ -28,6 +28,7 @@
       <div class="nav-inner">
         <%= link_to "Oopsie", root_path, class: "nav-brand" %>
         <div class="nav-links">
+          <%= link_to "CLI", cli_path %>
           <% if authenticated? %>
             <%= link_to "Projects", root_path %>
             <%= button_to "Log out", session_path, method: :delete, class: "btn-link" %>

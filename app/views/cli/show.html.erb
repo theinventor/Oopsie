@@ -1,0 +1,76 @@
+<% content_for(:title) { "Oopsie CLI" } %>
+
+<div class="page-header">
+  <h1>Oopsie CLI</h1>
+  <a href="https://raw.githubusercontent.com/theinventor/Oopsie/main/cli/oopsie" class="btn btn-primary" download="oopsie">Download CLI</a>
+</div>
+
+<div class="cli-intro card">
+  <p>Manage your exceptions from the command line or with AI bots. The CLI is a single bash script that requires only <code>curl</code> and <code>jq</code>.</p>
+</div>
+
+<div class="cli-section card">
+  <h2>Install</h2>
+  <pre><code>curl -fsSL https://raw.githubusercontent.com/theinventor/Oopsie/main/cli/oopsie -o oopsie
+chmod +x oopsie
+sudo mv oopsie /usr/local/bin/  # optional: add to PATH</code></pre>
+</div>
+
+<div class="cli-section card">
+  <h2>Setup</h2>
+  <p>Add your Oopsie server and project API key:</p>
+  <pre><code>oopsie config add myproject --server https://your-oopsie-instance.com --key YOUR_API_KEY</code></pre>
+  <p class="text-secondary">Find your API key on the project page after signing in.</p>
+</div>
+
+<div class="cli-section card">
+  <h2>Usage</h2>
+  <table class="cli-commands-table">
+    <thead>
+      <tr>
+        <th>Command</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td><code>oopsie project</code></td><td>Show project summary</td></tr>
+      <tr><td><code>oopsie errors</code></td><td>List error groups</td></tr>
+      <tr><td><code>oopsie errors --status resolved</code></td><td>Filter by status (unresolved/resolved/ignored)</td></tr>
+      <tr><td><code>oopsie show &lt;id&gt;</code></td><td>Show error group details and recent occurrences</td></tr>
+      <tr><td><code>oopsie resolve &lt;id&gt;</code></td><td>Mark as resolved</td></tr>
+      <tr><td><code>oopsie ignore &lt;id&gt;</code></td><td>Archive (ignore) an error group</td></tr>
+      <tr><td><code>oopsie reopen &lt;id&gt;</code></td><td>Reopen a resolved or ignored error group</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="cli-section card">
+  <h2>Multi-Project Support</h2>
+  <pre><code>oopsie config add production --server https://oopsie.example.com --key PROD_KEY
+oopsie config add staging --server https://staging.oopsie.example.com --key STAGING_KEY
+oopsie config use production   # set default
+oopsie errors --project staging # or override per-command</code></pre>
+</div>
+
+<div class="cli-section card">
+  <h2>API Reference</h2>
+  <p>The CLI talks to these JSON API endpoints (Bearer token auth):</p>
+  <table class="cli-commands-table">
+    <thead>
+      <tr>
+        <th>Method</th>
+        <th>Endpoint</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td><code>GET</code></td><td><code>/api/v1/project</code></td><td>Project info</td></tr>
+      <tr><td><code>GET</code></td><td><code>/api/v1/error_groups</code></td><td>List error groups (?status=, ?limit=, ?offset=)</td></tr>
+      <tr><td><code>GET</code></td><td><code>/api/v1/error_groups/:id</code></td><td>Error group details + occurrences</td></tr>
+      <tr><td><code>PATCH</code></td><td><code>/api/v1/error_groups/:id/resolve</code></td><td>Mark resolved</td></tr>
+      <tr><td><code>PATCH</code></td><td><code>/api/v1/error_groups/:id/ignore</code></td><td>Archive (ignore)</td></tr>
+      <tr><td><code>PATCH</code></td><td><code>/api/v1/error_groups/:id/unresolve</code></td><td>Reopen</td></tr>
+    </tbody>
+  </table>
+  <p class="text-secondary">All endpoints require <code>Authorization: Bearer YOUR_API_KEY</code> header.</p>
+</div>
