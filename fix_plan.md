@@ -22,7 +22,7 @@ Based on the approved design doc at `~/.gstack/projects/theinventor-Oopsie/troy-
 - [x] **Task 10: Retention job** — RetentionCleanupJob deletes occurrences older than OOPSIE_RETENTION_DAYS (default 90), uses delete_all to preserve lifetime counter, runs daily at 3am via Solid Queue recurring schedule. 4 new tests.
 
 ## Phase 5: Polish
-- [ ] Task 11: Seed data and bin/setup improvements
+- [x] **Task 11: Seed data and bin/setup** — Demo project with 3 error groups (unresolved/resolved/ignored), 9 sample occurrences, email notification rule, curl example in seed output. bin/setup with ASCII art banner and streamlined flow.
 - [ ] Task 12: README with deploy instructions, API docs, curl examples
 - [ ] Task 13: ExceptionReporter payload spec docs
 
