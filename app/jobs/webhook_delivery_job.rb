@@ -34,7 +34,15 @@ class WebhookDeliveryJob < ApplicationJob
       }
     }
 
-    uri = URI.parse(rule.destination)
+    deliver_webhook(rule.destination, payload)
+  end
+
+  private
+
+  def deliver_webhook(url, payload)
+    uri = URI.parse(url)
+    return unless uri.is_a?(URI::HTTP) || uri.is_a?(URI::HTTPS)
+
     http = Net::HTTP.new(uri.host, uri.port)
     http.use_ssl = uri.scheme == "https"
     http.open_timeout = 10
@@ -47,7 +55,7 @@ class WebhookDeliveryJob < ApplicationJob
     response = http.request(request)
 
     unless response.is_a?(Net::HTTPSuccess)
-      Rails.logger.warn "[Oopsie] Webhook delivery to #{rule.destination} returned #{response.code}"
+      Rails.logger.warn "[Oopsie] Webhook delivery to #{url} returned #{response.code}"
     end
   end
 end

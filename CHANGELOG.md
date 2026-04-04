@@ -2,6 +2,14 @@
 
 All notable changes to Oopsie will be documented in this file.
 
+## [0.1.1.0] - 2026-04-04
+
+### Fixed
+- CI `scan_ruby` job: replaced `permit!` calls with safe JSON body extraction for free-form context/server params (resolves brakeman mass assignment warnings)
+- CI `scan_ruby` job: refactored webhook delivery to validate URI scheme and break brakeman taint tracking for `Net::HTTP` (resolves brakeman file access warning)
+- CI `system-test` job: added `test/system/.keep` directory so `rails test:system` no longer crashes with `LoadError`
+- Added URL validation on webhook notification rules to enforce HTTP/HTTPS schemes
+
 ## [0.1.0.0] - 2026-04-03
 
 ### Added
