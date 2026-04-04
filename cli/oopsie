@@ -1,0 +1,428 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+VERSION="0.1.0"
+CONFIG_DIR="${OOPSIE_CONFIG_DIR:-$HOME/.oopsie}"
+CONFIG_FILE="$CONFIG_DIR/config.json"
+
+# ── Helpers ─────────────────────────────────────────────────────────────
+
+die()  { echo "Error: $*" >&2; exit 1; }
+need() { command -v "$1" >/dev/null 2>&1 || die "'$1' is required but not installed."; }
+
+need curl
+need jq
+
+ensure_config() {
+  if [ ! -f "$CONFIG_FILE" ]; then
+    mkdir -p "$CONFIG_DIR" && chmod 700 "$CONFIG_DIR"
+    echo '{"projects":{},"default":null}' > "$CONFIG_FILE"
+    chmod 600 "$CONFIG_FILE"
+  fi
+}
+
+read_config() { jq -r "$@" "$CONFIG_FILE"; }
+
+write_config() {
+  local tmp="$CONFIG_FILE.tmp"
+  jq "$@" "$CONFIG_FILE" > "$tmp" && chmod 600 "$tmp" && mv "$tmp" "$CONFIG_FILE"
+}
+
+# Resolve which project to use: --project flag > default
+resolve_project() {
+  local name="${PROJECT_FLAG:-$(read_config '.default // empty')}"
+  [ -z "$name" ] && die "No project configured. Run 'oopsie config add' first."
+
+  local server key
+  server=$(read_config ".projects[\"$name\"].server // empty")
+  key=$(read_config ".projects[\"$name\"].key // empty")
+  [ -z "$server" ] && die "Project '$name' not found. Run 'oopsie config list'."
+
+  PROJECT_NAME="$name"
+  PROJECT_SERVER="${server%/}"
+  PROJECT_KEY="$key"
+}
+
+# Make an API request. Usage: api GET /path [query_params]
+api() {
+  local method="$1" path="$2"
+  shift 2
+  local url="${PROJECT_SERVER}${path}"
+
+  # Append query string if extra args provided
+  if [ $# -gt 0 ]; then
+    url="${url}?$(printf '%s&' "$@")"
+    url="${url%&}"
+  fi
+
+  local http_code body
+  body=$(curl -s -w "\n%{http_code}" \
+    -X "$method" \
+    -H "Authorization: Bearer ${PROJECT_KEY}" \
+    -H "Accept: application/json" \
+    -H "Content-Type: application/json" \
+    --connect-timeout 10 \
+    --max-time 30 \
+    "$url" 2>/dev/null) || die "Cannot connect to ${PROJECT_SERVER}. Is the server running?"
+
+  http_code=$(echo "$body" | tail -1)
+  body=$(echo "$body" | sed '$d')
+
+  case "$http_code" in
+    2*) echo "$body" ;;
+    401) die "Invalid API key. Check your configuration." ;;
+    404) die "Not found." ;;
+    429) die "Rate limit exceeded. Try again in a minute." ;;
+    *)   die "Server returned HTTP $http_code: $body" ;;
+  esac
+}
+
+relative_time() {
+  local iso="$1"
+  # Try GNU date, then BSD date, then fall back to raw string
+  local ts
+  ts=$(date -d "$iso" +%s 2>/dev/null || date -j -f "%Y-%m-%dT%H:%M:%S" "${iso%%.*}" +%s 2>/dev/null || echo "")
+  if [ -z "$ts" ]; then
+    echo "$iso"
+    return
+  fi
+
+  local now diff
+  now=$(date +%s)
+  diff=$((now - ts))
+
+  if   [ $diff -lt 60 ];    then echo "just now"
+  elif [ $diff -lt 3600 ];  then echo "$((diff / 60))m ago"
+  elif [ $diff -lt 86400 ]; then echo "$((diff / 3600))h ago"
+  elif [ $diff -lt 604800 ];then echo "$((diff / 86400))d ago"
+  else echo "${iso:0:10}"
+  fi
+}
+
+truncate() {
+  local str="$1" max="${2:-80}"
+  if [ ${#str} -gt "$max" ]; then
+    echo "${str:0:$((max-3))}..."
+  else
+    echo "$str"
+  fi
+}
+
+status_badge() {
+  case "$1" in
+    unresolved) echo "[OPEN]" ;;
+    resolved)   echo "[RESOLVED]" ;;
+    ignored)    echo "[IGNORED]" ;;
+    *)          echo "[$(echo "$1" | tr '[:lower:]' '[:upper:]')]" ;;
+  esac
+}
+
+# ── Config Commands ─────────────────────────────────────────────────────
+
+cmd_config_add() {
+  local name="" server="" key=""
+  [ $# -ge 1 ] && { name="$1"; shift; }
+
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --server) server="$2"; shift 2 ;;
+      --key)    key="$2";    shift 2 ;;
+      *)        shift ;;
+    esac
+  done
+
+  [ -z "$name" ]   && die "Usage: oopsie config add <name> --server <url> --key <api_key>"
+  [ -z "$server" ] && die "Missing --server"
+  [ -z "$key" ]    && die "Missing --key"
+
+  ensure_config
+
+  write_config \
+    --arg n "$name" --arg s "$server" --arg k "$key" \
+    '.projects[$n] = {server: $s, key: $k} | if .default == null then .default = $n else . end'
+
+  echo "Added project '$name' ($server)"
+  local default
+  default=$(read_config '.default')
+  if [ "$default" = "$name" ]; then
+    echo "Set as default."
+  fi
+}
+
+cmd_config_list() {
+  ensure_config
+  local count
+  count=$(read_config '.projects | length')
+
+  if [ "$count" -eq 0 ]; then
+    echo "No projects configured. Run 'oopsie config add' to get started."
+    return
+  fi
+
+  local default
+  default=$(read_config '.default // ""')
+
+  local entries
+  entries=$(read_config '.projects | to_entries[] | "\(.key)\t\(.value.server)\t\(.value.key)"')
+
+  while IFS=$'\t' read -r name server key; do
+    local marker=""
+    [ "$name" = "$default" ] && marker=" *"
+    echo "  ${name}${marker}  ${server}  (key: ${key:0:8}...)"
+  done <<< "$entries"
+  echo ""
+  echo "  * = default project"
+}
+
+cmd_config_remove() {
+  local name="${1:-}"
+  [ -z "$name" ] && die "Usage: oopsie config remove <name>"
+  ensure_config
+
+  local exists
+  exists=$(read_config --arg n "$name" '.projects[$n] // empty')
+  [ -z "$exists" ] && die "Project '$name' not found in config."
+
+  write_config --arg n "$name" \
+    'del(.projects[$n]) | if .default == $n then .default = (.projects | keys | first // null) else . end'
+
+  echo "Removed project '$name'."
+}
+
+cmd_config_use() {
+  local name="${1:-}"
+  [ -z "$name" ] && die "Usage: oopsie config use <name>"
+  ensure_config
+
+  local exists
+  exists=$(read_config --arg n "$name" '.projects[$n] // empty')
+  [ -z "$exists" ] && die "Project '$name' not found. Run 'oopsie config list'."
+
+  write_config --arg n "$name" '.default = $n'
+  echo "Default project set to '$name'."
+}
+
+cmd_config() {
+  local sub="${1:-help}"; shift 2>/dev/null || true
+  case "$sub" in
+    add)    cmd_config_add "$@" ;;
+    list)   cmd_config_list ;;
+    remove) cmd_config_remove "$@" ;;
+    use)    cmd_config_use "$@" ;;
+    *)
+      cat <<EOF
+Usage:
+  oopsie config add <name> --server <url> --key <api_key>
+  oopsie config list
+  oopsie config remove <name>
+  oopsie config use <name>
+EOF
+      ;;
+  esac
+}
+
+# ── Project Command ─────────────────────────────────────────────────────
+
+cmd_project() {
+  resolve_project
+  local data
+  data=$(api GET /api/v1/project)
+
+  echo "Project: $(echo "$data" | jq -r '.name')"
+  echo "  Total error groups:  $(echo "$data" | jq -r '.error_groups_count')"
+  echo "  Unresolved:          $(echo "$data" | jq -r '.unresolved_count')"
+  echo "  Created:             $(echo "$data" | jq -r '.created_at')"
+}
+
+# ── Errors Command ──────────────────────────────────────────────────────
+
+cmd_errors() {
+  local params=()
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --status) params+=("status=$2"); shift 2 ;;
+      --limit)  params+=("limit=$2");  shift 2 ;;
+      --offset) params+=("offset=$2"); shift 2 ;;
+      *)        shift ;;
+    esac
+  done
+
+  resolve_project
+  local data
+  data=$(api GET /api/v1/error_groups "${params[@]+"${params[@]}"}")
+
+  local count total
+  count=$(echo "$data" | jq '.error_groups | length')
+  total=$(echo "$data" | jq '.total')
+
+  if [ "$count" -eq 0 ]; then
+    echo "No error groups found."
+    return
+  fi
+
+  echo "Error Groups ($count of $total):"
+  echo ""
+
+  echo "$data" | jq -c '.error_groups[]' | while read -r group; do
+    local id status error_class message occ_count last_seen
+    id=$(echo "$group" | jq -r '.id')
+    status=$(echo "$group" | jq -r '.status')
+    error_class=$(echo "$group" | jq -r '.error_class')
+    message=$(echo "$group" | jq -r '.message // ""')
+    occ_count=$(echo "$group" | jq -r '.occurrences_count')
+    last_seen=$(echo "$group" | jq -r '.last_seen_at')
+
+    echo "  #${id}  $(status_badge "$status")  ${error_class}"
+    echo "       $(truncate "$message" 80)"
+    echo "       ${occ_count} occurrences · last seen $(relative_time "$last_seen")"
+    echo ""
+  done
+}
+
+# ── Show Command ────────────────────────────────────────────────────────
+
+cmd_show() {
+  local id="${1:-}"
+  [ -z "$id" ] && die "Usage: oopsie show <error_group_id>"
+
+  resolve_project
+  local data
+  data=$(api GET "/api/v1/error_groups/$id")
+
+  local g
+  g=$(echo "$data" | jq '.error_group')
+
+  echo "Error Group #$(echo "$g" | jq -r '.id')"
+  echo "  Class:        $(echo "$g" | jq -r '.error_class')"
+  echo "  Status:       $(status_badge "$(echo "$g" | jq -r '.status')")"
+  echo "  Message:      $(echo "$g" | jq -r '.message // ""')"
+  echo "  Occurrences:  $(echo "$g" | jq -r '.occurrences_count')"
+  echo "  First seen:   $(echo "$g" | jq -r '.first_seen_at')"
+  echo "  Last seen:    $(echo "$g" | jq -r '.last_seen_at')"
+
+  local occ_count
+  occ_count=$(echo "$data" | jq '.occurrences | length')
+
+  if [ "$occ_count" -gt 0 ]; then
+    echo ""
+    echo "  Recent Occurrences:"
+    echo ""
+
+    echo "$data" | jq -c '.occurrences[]' | while read -r occ; do
+      local oid occurred_at env msg
+      oid=$(echo "$occ" | jq -r '.id')
+      occurred_at=$(echo "$occ" | jq -r '.occurred_at')
+      env=$(echo "$occ" | jq -r '.environment // "unknown"')
+      msg=$(echo "$occ" | jq -r '.message // ""')
+
+      echo "    #${oid}  ${occurred_at}  [${env}]"
+      echo "      $(truncate "$msg" 76)"
+
+      local file line method
+      file=$(echo "$occ" | jq -r '.first_line.file // empty')
+      if [ -n "$file" ]; then
+        line=$(echo "$occ" | jq -r '.first_line.line // ""')
+        method=$(echo "$occ" | jq -r '.first_line.method // ""')
+        echo "      at ${file}:${line} in ${method}"
+      fi
+
+      local ctx
+      ctx=$(echo "$occ" | jq -r 'if .context != null and .context != {} then .context | tostring else empty end')
+      [ -n "$ctx" ] && echo "      context: ${ctx}"
+
+      echo ""
+    done
+  fi
+}
+
+# ── Action Commands ─────────────────────────────────────────────────────
+
+cmd_resolve() {
+  local id="${1:-}"
+  [ -z "$id" ] && die "Usage: oopsie resolve <error_group_id>"
+  resolve_project
+  api PATCH "/api/v1/error_groups/$id/resolve" >/dev/null
+  echo "Resolved error group #${id}."
+}
+
+cmd_ignore() {
+  local id="${1:-}"
+  [ -z "$id" ] && die "Usage: oopsie ignore <error_group_id>"
+  resolve_project
+  api PATCH "/api/v1/error_groups/$id/ignore" >/dev/null
+  echo "Ignored (archived) error group #${id}."
+}
+
+cmd_reopen() {
+  local id="${1:-}"
+  [ -z "$id" ] && die "Usage: oopsie reopen <error_group_id>"
+  resolve_project
+  api PATCH "/api/v1/error_groups/$id/unresolve" >/dev/null
+  echo "Reopened error group #${id}."
+}
+
+# ── Help ────────────────────────────────────────────────────────────────
+
+cmd_help() {
+  cat <<EOF
+Oopsie CLI v${VERSION} — manage your exceptions from the command line
+
+Requires: curl, jq
+
+Setup:
+  oopsie config add <name> --server <url> --key <api_key>
+  oopsie config list
+  oopsie config remove <name>
+  oopsie config use <name>          Set the default project
+
+Info:
+  oopsie project                    Show project summary
+
+Errors:
+  oopsie errors                     List error groups
+  oopsie errors --status unresolved Filter by status (unresolved/resolved/ignored)
+  oopsie errors --limit 10          Limit results
+  oopsie show <id>                  Show error group details + recent occurrences
+
+Actions:
+  oopsie resolve <id>               Mark as resolved
+  oopsie ignore <id>                Archive (ignore) an error group
+  oopsie reopen <id>                Reopen a resolved/ignored error group
+
+Options:
+  --project <name>                  Use a specific project (overrides default)
+  --help, -h                        Show this help
+  --version, -v                     Show version
+
+Config is stored in ${CONFIG_DIR}/config.json
+Override with OOPSIE_CONFIG_DIR env var.
+EOF
+}
+
+# ── Main ────────────────────────────────────────────────────────────────
+
+# Extract --project flag before dispatching
+PROJECT_FLAG=""
+args=()
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --project) PROJECT_FLAG="$2"; shift 2 ;;
+    *)         args+=("$1"); shift ;;
+  esac
+done
+set -- "${args[@]+"${args[@]}"}"
+
+command="${1:-help}"; shift 2>/dev/null || true
+
+case "$command" in
+  config)                cmd_config "$@" ;;
+  project)               cmd_project ;;
+  errors)                cmd_errors "$@" ;;
+  show)                  cmd_show "$@" ;;
+  resolve)               cmd_resolve "$@" ;;
+  ignore)                cmd_ignore "$@" ;;
+  reopen)                cmd_reopen "$@" ;;
+  help|--help|-h)        cmd_help ;;
+  version|--version|-v)  echo "oopsie ${VERSION}" ;;
+  *)                     die "Unknown command: $command. Run 'oopsie help' for usage." ;;
+esac

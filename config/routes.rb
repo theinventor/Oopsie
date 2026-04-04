@@ -22,6 +22,14 @@ Rails.application.routes.draw do
   namespace :api do
     namespace :v1 do
       resources :exceptions, only: [ :create ]
+      resource :project, only: [ :show ]
+      resources :error_groups, only: [ :index, :show ] do
+        member do
+          patch :resolve
+          patch :ignore
+          patch :unresolve
+        end
+      end
     end
   end
   # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
