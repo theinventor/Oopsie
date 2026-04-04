@@ -50,10 +50,7 @@ module Api
 
       def set_error_group
         @error_group = @project.error_groups.find_by(id: params[:id])
-        unless @error_group
-          render json: { error: "Error group not found" }, status: :not_found
-          return
-        end
+        render json: { error: "Error group not found" }, status: :not_found unless @error_group
       end
 
       def serialize_group(g)

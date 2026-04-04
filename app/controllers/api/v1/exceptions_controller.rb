@@ -83,7 +83,6 @@ module Api
           render json: { error: "Unprocessable Entity", details: errors }, status: :unprocessable_entity
         end
       end
-
     end
   end
 end

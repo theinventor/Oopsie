@@ -16,10 +16,7 @@ module Api
 
         @project = Project.find_by(api_key: token)
 
-        unless @project
-          render json: { error: "Invalid API key" }, status: :unauthorized
-          return
-        end
+        render json: { error: "Invalid API key" }, status: :unauthorized unless @project
       end
 
       def check_rate_limit!
