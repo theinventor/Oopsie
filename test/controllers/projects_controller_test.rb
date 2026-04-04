@@ -27,7 +27,7 @@ class ProjectsControllerTest < ActionDispatch::IntegrationTest
     assert_difference "Project.count", 1 do
       post projects_url, params: { project: { name: "New App" } }
     end
-    assert_redirected_to root_path
+    assert_redirected_to projects_path
     assert_equal "New App", Project.last.name
     assert Project.last.api_key.present?
   end
@@ -49,7 +49,7 @@ class ProjectsControllerTest < ActionDispatch::IntegrationTest
     assert_difference "Project.count", -1 do
       delete project_url(@project)
     end
-    assert_redirected_to root_path
+    assert_redirected_to projects_path
   end
 
   test "shows error groups on project page" do

@@ -30,7 +30,7 @@
         <div class="nav-links">
           <%= link_to "CLI", cli_path %>
           <% if authenticated? %>
-            <%= link_to "Projects", root_path %>
+            <%= link_to "Projects", projects_path %>
             <%= button_to "Log out", session_path, method: :delete, class: "btn-link" %>
           <% end %>
         </div>
