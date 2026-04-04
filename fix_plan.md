@@ -8,8 +8,8 @@ Based on the approved design doc at `~/.gstack/projects/theinventor-Oopsie/troy-
 - [x] **Task 2: Add Rails 8.1 built-in authentication** — User/Session models, login/logout, password reset, single admin user via db:seed. Root route → dashboard#index.
 
 ## Phase 2: API
-- [ ] Task 3: Build POST /api/v1/exceptions endpoint with fingerprinting, grouping, and rate limiting
-- [ ] Task 4: Add API error handling (401, 422, 429 responses)
+- [x] **Task 3: Build POST /api/v1/exceptions endpoint** — fingerprinting, grouping, rate limiting (100/min/project), Bearer token auth, regression detection (resolved→unresolved). 9 integration tests.
+- [ ] Task 4: Add API error handling (422 for malformed payloads — 401/429 already covered in Task 3)
 
 ## Phase 3: Web UI
 - [ ] Task 5: Dashboard — list of projects with unresolved error counts
