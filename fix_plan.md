@@ -12,7 +12,7 @@ Based on the approved design doc at `~/.gstack/projects/theinventor-Oopsie/troy-
 - [x] **Task 4: Add API error handling** — 422 for missing error object or error.class_name, rescue_from for ActiveRecord validation failures. 4 new tests.
 
 ## Phase 3: Web UI
-- [ ] Task 5: Dashboard — list of projects with unresolved error counts
+- [x] **Task 5: Dashboard + Projects CRUD** — project list with unresolved counts, create/edit/delete projects, project detail with error group table, app-wide layout with nav, CSS styling. 12 new tests.
 - [ ] Task 6: Project view — error groups sorted by last_seen_at
 - [ ] Task 7: Error group detail — backtrace, occurrence timeline, resolve/ignore/unresolve
 - [ ] Task 8: Settings — project API key display, notification rule management

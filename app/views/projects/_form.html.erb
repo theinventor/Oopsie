@@ -1,0 +1,14 @@
+<%= form_with(model: project, class: "card", style: "padding: 1.5rem; max-width: 480px;") do |f| %>
+  <div class="form-group">
+    <%= f.label :name %>
+    <%= f.text_field :name, autofocus: true, placeholder: "My Rails App" %>
+    <% if project.errors[:name].any? %>
+      <div class="field-errors"><%= project.errors[:name].join(", ") %></div>
+    <% end %>
+  </div>
+
+  <div style="display: flex; gap: 0.5rem;">
+    <%= f.submit class: "btn btn-primary" %>
+    <%= link_to "Cancel", root_path, class: "btn btn-secondary" %>
+  </div>
+<% end %>

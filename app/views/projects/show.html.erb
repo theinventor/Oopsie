@@ -1,0 +1,48 @@
+<div class="page-header">
+  <h1><%= @project.name %></h1>
+  <div style="display: flex; gap: 0.5rem;">
+    <%= link_to "Edit", edit_project_path(@project), class: "btn btn-secondary btn-sm" %>
+    <%= button_to "Delete", project_path(@project), method: :delete,
+        class: "btn btn-danger btn-sm",
+        data: { turbo_confirm: "Delete #{@project.name} and all its data?" } %>
+  </div>
+</div>
+
+<div style="margin-bottom: 1.5rem; font-size: 0.875rem; color: var(--text-muted);">
+  API Key: <code><%= @project.api_key %></code>
+</div>
+
+<% if @error_groups.any? %>
+  <div class="card" style="overflow-x: auto;">
+    <table class="error-table">
+      <thead>
+        <tr>
+          <th>Status</th>
+          <th>Error</th>
+          <th style="text-align: right;">Count</th>
+          <th>Last Seen</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @error_groups.each do |group| %>
+          <tr>
+            <td><span class="status-<%= group.status %>"><%= group.status %></span></td>
+            <td>
+              <div class="error-class"><%= group.error_class %></div>
+              <% if group.message.present? %>
+                <div class="error-message"><%= group.message %></div>
+              <% end %>
+            </td>
+            <td style="text-align: right; font-weight: 600;"><%= group.occurrences_count %></td>
+            <td class="error-time"><%= time_ago_in_words(group.last_seen_at) %> ago</td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+<% else %>
+  <div class="empty-state card">
+    <p><strong>No exceptions yet.</strong></p>
+    <p>Point your app's ExceptionReporter at this project's API key to start tracking errors.</p>
+  </div>
+<% end %>

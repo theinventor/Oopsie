@@ -1,6 +1,7 @@
 Rails.application.routes.draw do
   resource :session
   resources :passwords, param: :token
+  resources :projects
 
   namespace :api do
     namespace :v1 do

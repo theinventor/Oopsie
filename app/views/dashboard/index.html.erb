@@ -1,2 +1,31 @@
-<h1>Oopsie Dashboard</h1>
-<p>Welcome to Oopsie. Projects and error groups will appear here.</p>
+<div class="page-header">
+  <h1>Projects</h1>
+  <%= link_to "New Project", new_project_path, class: "btn btn-primary" %>
+</div>
+
+<% if @projects.any? %>
+  <div class="project-list">
+    <% @projects.each do |project| %>
+      <div class="card project-card">
+        <div class="project-info">
+          <h2><%= link_to project.name, project_path(project) %></h2>
+          <div class="project-meta">
+            API key: <code><%= project.api_key.first(8) %>...</code>
+          </div>
+        </div>
+        <% count = project.respond_to?(:unresolved_count) ? project.unresolved_count : 0 %>
+        <% if count > 0 %>
+          <span class="badge badge-danger"><%= count %> unresolved</span>
+        <% else %>
+          <span class="badge badge-success">All clear</span>
+        <% end %>
+      </div>
+    <% end %>
+  </div>
+<% else %>
+  <div class="empty-state card">
+    <p><strong>No projects yet.</strong></p>
+    <p>Create a project to start tracking exceptions.</p>
+    <p style="margin-top: 1rem;"><%= link_to "Create your first project", new_project_path, class: "btn btn-primary" %></p>
+  </div>
+<% end %>
