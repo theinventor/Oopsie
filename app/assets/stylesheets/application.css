@@ -229,3 +229,65 @@ a:hover { color: var(--accent-hover); }
 .status-unresolved { color: var(--accent); }
 .status-resolved { color: var(--success); }
 .status-ignored { color: var(--text-muted); }
+
+/* Status actions row */
+.status-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Error group detail stats */
+.error-stats {
+  display: flex;
+  gap: 2rem;
+  margin-bottom: 1.5rem;
+  padding: 1rem 1.25rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.stat { display: flex; flex-direction: column; }
+.stat-value { font-weight: 600; font-size: 1rem; }
+.stat-label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.03em; }
+
+/* Section titles */
+.section-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 1.5rem 0 0.5rem;
+}
+
+/* Backtrace */
+.backtrace-card { padding: 0; }
+.backtrace-frame {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.8rem;
+  border-bottom: 1px solid var(--border);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.backtrace-frame:last-child { border-bottom: none; }
+.backtrace-frame-top { background: #fff3f3; }
+.backtrace-frame code {
+  word-break: break-all;
+  font-size: inherit;
+  font-family: inherit;
+}
+.frame-number {
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  min-width: 1.5rem;
+  text-align: right;
+}
+
+/* Context JSON */
+.context-json {
+  margin: 0;
+  font-size: 0.8rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  white-space: pre-wrap;
+  word-break: break-word;
+}

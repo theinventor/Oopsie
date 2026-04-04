@@ -1,7 +1,15 @@
 Rails.application.routes.draw do
   resource :session
   resources :passwords, param: :token
-  resources :projects
+  resources :projects do
+    resources :error_groups, only: [ :show ] do
+      member do
+        patch :resolve
+        patch :ignore
+        patch :unresolve
+      end
+    end
+  end
 
   namespace :api do
     namespace :v1 do

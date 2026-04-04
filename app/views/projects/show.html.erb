@@ -28,7 +28,7 @@
           <tr>
             <td><span class="status-<%= group.status %>"><%= group.status %></span></td>
             <td>
-              <div class="error-class"><%= group.error_class %></div>
+              <div class="error-class"><%= link_to group.error_class, project_error_group_path(@project, group) %></div>
               <% if group.message.present? %>
                 <div class="error-message"><%= group.message %></div>
               <% end %>

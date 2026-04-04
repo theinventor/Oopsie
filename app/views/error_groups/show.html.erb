@@ -1,0 +1,94 @@
+<div class="page-header">
+  <div>
+    <div style="font-size: 0.8rem; margin-bottom: 0.25rem;">
+      <%= link_to @project.name, project_path(@project) %> &rsaquo; Error Group
+    </div>
+    <h1 class="error-class" style="font-size: 1.4rem;"><%= @error_group.error_class %></h1>
+    <% if @error_group.message.present? %>
+      <p style="color: var(--text-muted); margin: 0.25rem 0 0; font-size: 0.9rem;"><%= @error_group.message %></p>
+    <% end %>
+  </div>
+  <div class="status-actions">
+    <span class="badge badge-<%= status_badge_class(@error_group.status) %>"><%= @error_group.status %></span>
+    <% if @error_group.unresolved? %>
+      <%= button_to "Resolve", resolve_project_error_group_path(@project, @error_group), method: :patch, class: "btn btn-sm btn-secondary" %>
+      <%= button_to "Ignore", ignore_project_error_group_path(@project, @error_group), method: :patch, class: "btn btn-sm btn-secondary" %>
+    <% else %>
+      <%= button_to "Reopen", unresolve_project_error_group_path(@project, @error_group), method: :patch, class: "btn btn-sm btn-primary" %>
+    <% end %>
+  </div>
+</div>
+
+<div class="error-stats">
+  <div class="stat">
+    <span class="stat-value"><%= @error_group.occurrences_count %></span>
+    <span class="stat-label">Total occurrences</span>
+  </div>
+  <div class="stat">
+    <span class="stat-value"><%= time_ago_in_words(@error_group.first_seen_at) %> ago</span>
+    <span class="stat-label">First seen</span>
+  </div>
+  <div class="stat">
+    <span class="stat-value"><%= time_ago_in_words(@error_group.last_seen_at) %> ago</span>
+    <span class="stat-label">Last seen</span>
+  </div>
+</div>
+
+<% if @latest %>
+  <h2 class="section-title">Latest Backtrace</h2>
+  <div class="card backtrace-card">
+    <% backtrace = @latest.backtrace.is_a?(String) ? (JSON.parse(@latest.backtrace) rescue []) : Array(@latest.backtrace) %>
+    <% if backtrace.any? %>
+      <% backtrace.each_with_index do |frame, i| %>
+        <div class="backtrace-frame <%= i == 0 ? 'backtrace-frame-top' : '' %>">
+          <span class="frame-number"><%= i + 1 %></span>
+          <code><%= frame %></code>
+        </div>
+      <% end %>
+    <% else %>
+      <div style="padding: 1rem; color: var(--text-muted);">No backtrace available.</div>
+    <% end %>
+  </div>
+
+  <% ctx = @latest.context.is_a?(String) ? (JSON.parse(@latest.context) rescue nil) : @latest.context %>
+  <% if ctx.present? && ctx.respond_to?(:any?) && ctx.any? %>
+    <h2 class="section-title">Context</h2>
+    <div class="card" style="padding: 1rem;">
+      <pre class="context-json"><%= JSON.pretty_generate(ctx) %></pre>
+    </div>
+  <% end %>
+
+  <% srv = @latest.server_info.is_a?(String) ? (JSON.parse(@latest.server_info) rescue nil) : @latest.server_info %>
+  <% if srv.present? && srv.respond_to?(:any?) && srv.any? %>
+    <h2 class="section-title">Server</h2>
+    <div class="card" style="padding: 1rem;">
+      <pre class="context-json"><%= JSON.pretty_generate(srv) %></pre>
+    </div>
+  <% end %>
+<% end %>
+
+<h2 class="section-title">Occurrences (<%= @occurrences.size %><%= " most recent" if @occurrences.size >= 50 %>)</h2>
+<% if @occurrences.any? %>
+  <div class="card" style="overflow-x: auto;">
+    <table class="error-table">
+      <thead>
+        <tr>
+          <th>Time</th>
+          <th>Message</th>
+          <th>Environment</th>
+          <th>Handled</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @occurrences.each do |occ| %>
+          <tr>
+            <td class="error-time"><%= occ.occurred_at.strftime("%Y-%m-%d %H:%M:%S") %></td>
+            <td style="max-width: 400px;"><%= truncate(occ.message || "", length: 100) %></td>
+            <td><%= occ.environment || "—" %></td>
+            <td><%= occ.handled ? "Yes" : "No" %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+<% end %>
