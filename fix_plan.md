@@ -19,7 +19,7 @@ Based on the approved design doc at `~/.gstack/projects/theinventor-Oopsie/troy-
 
 ## Phase 4: Notifications & Background Jobs
 - [x] **Task 9: Notification system** — OopsieMailer (HTML+text), NotifyJob dispatches to email/webhook rules, WebhookDeliveryJob with retry, API enqueues on new group/regression. 10 new tests.
-- [ ] Task 10: Retention job — Solid Queue recurring task for occurrence cleanup (90-day default)
+- [x] **Task 10: Retention job** — RetentionCleanupJob deletes occurrences older than OOPSIE_RETENTION_DAYS (default 90), uses delete_all to preserve lifetime counter, runs daily at 3am via Solid Queue recurring schedule. 4 new tests.
 
 ## Phase 5: Polish
 - [ ] Task 11: Seed data and bin/setup improvements
