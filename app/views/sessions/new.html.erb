@@ -1,11 +1,25 @@
-<%= tag.div(flash[:alert], style: "color:red") if flash[:alert] %>
-<%= tag.div(flash[:notice], style: "color:green") if flash[:notice] %>
+<div style="max-width: 380px; margin: 6rem auto 0; text-align: center;">
+  <h1 style="font-size: 1.75rem; margin-bottom: 0.25rem; color: #fff;">Sign in to Oopsie</h1>
+  <p style="color: var(--text-secondary); margin-bottom: 2rem; font-size: 0.9rem;">Exception tracking for your apps</p>
 
-<%= form_with url: session_path do |form| %>
-  <%= form.email_field :email_address, required: true, autofocus: true, autocomplete: "username", placeholder: "Enter your email address", value: params[:email_address] %><br>
-  <%= form.password_field :password, required: true, autocomplete: "current-password", placeholder: "Enter your password", maxlength: 72 %><br>
-  <%= form.submit "Sign in" %>
-<% end %>
-<br>
+  <div class="card" style="padding: 2rem; text-align: left;">
+    <%= tag.div(flash[:alert], class: "flash flash-alert", style: "margin-bottom: 1rem;") if flash[:alert] %>
+    <%= tag.div(flash[:notice], class: "flash flash-notice", style: "margin-bottom: 1rem;") if flash[:notice] %>
 
-<%= link_to "Forgot password?", new_password_path %>
+    <%= form_with url: session_path do |form| %>
+      <div class="form-group">
+        <%= form.label :email_address, "Email" %>
+        <%= form.email_field :email_address, required: true, autofocus: true, autocomplete: "username", placeholder: "you@example.com", value: params[:email_address] %>
+      </div>
+      <div class="form-group">
+        <%= form.label :password, "Password" %>
+        <%= form.password_field :password, required: true, autocomplete: "current-password", placeholder: "Enter your password", maxlength: 72 %>
+      </div>
+      <%= form.submit "Sign in", style: "width: 100%; margin-top: 0.5rem;" %>
+    <% end %>
+  </div>
+
+  <p style="margin-top: 1.25rem; font-size: 0.85rem;">
+    <%= link_to "Forgot password?", new_password_path %>
+  </p>
+</div>

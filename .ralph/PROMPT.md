@@ -26,16 +26,28 @@ Read this before starting work if you need full context on architecture decision
 - Update fix_plan.md with your learnings
 - Commit working changes with descriptive messages
 
-## Quality Gates (CRITICAL)
-After completing each task, run these quality checks before marking complete:
+## Git Hygiene (CRITICAL — READ FIRST)
 
-1. **Review your diff** — Use `/review` to run a pre-landing code review on your changes.
-   Fix any issues the review surfaces before proceeding.
-2. **QA test the app** — Use `/qa` to run QA testing against the running app (start with `bin/dev`).
-   Fix any bugs found before proceeding.
-3. **Ship it** — Use `/ship` to create a proper commit and push your changes.
+**On loop start:** Check `git status`. If there are uncommitted changes from a previous
+loop, review them, run tests, and commit+push them BEFORE starting new work. Do not
+discard prior work.
 
-Do NOT skip these steps. Each task should end with reviewed, QA-tested, shipped code.
+**On loop end:** ALWAYS commit and push before reporting status. Use `/ship` to create
+a proper commit and push. If `/ship` is unavailable, commit manually:
+`git add -A && git commit -m "feat: description" && git push origin main`
+
+**Commit early, commit often.** If a task has multiple logical steps (e.g., generate
+migration, then build controller), commit after each step that leaves the app in a
+working state. This way if the loop times out, progress is saved.
+
+## Quality Gates
+After completing each task:
+
+1. Run tests: `bin/rails test`
+2. Review your diff: Use `/review` for a pre-landing code review. Fix issues found.
+3. Commit and push via `/ship`
+
+Do NOT end a loop with uncommitted changes.
 
 ## Protected Files (DO NOT MODIFY)
 The following files and directories are part of Ralph's infrastructure.
