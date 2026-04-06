@@ -2,6 +2,11 @@
 
 All notable changes to Oopsie will be documented in this file.
 
+## [0.1.2.0] - 2026-04-05
+
+### Fixed
+- Projects with only resolved or ignored errors were hidden from the projects list and dashboard. All projects now appear regardless of error group status.
+
 ## [0.1.1.0] - 2026-04-04
 
 ### Fixed
