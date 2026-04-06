@@ -52,6 +52,12 @@ class ProjectsControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to projects_path
   end
 
+  test "index shows projects with only resolved errors" do
+    get projects_url
+    assert_response :success
+    assert_select "a", text: /OtherApp/
+  end
+
   test "shows error groups on project page" do
     @project.error_groups.create!(
       fingerprint: "test123",

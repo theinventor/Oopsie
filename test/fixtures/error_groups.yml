@@ -17,3 +17,13 @@ resolved_error:
   occurrences_count: 1
   first_seen_at: <%= 5.days.ago.to_fs(:db) %>
   last_seen_at: <%= 3.days.ago.to_fs(:db) %>
+
+otherapp_resolved:
+  project: otherapp
+  fingerprint: ghi789fingerprint
+  error_class: RuntimeError
+  message: "something went wrong"
+  status: 1
+  occurrences_count: 2
+  first_seen_at: <%= 3.days.ago.to_fs(:db) %>
+  last_seen_at: <%= 1.day.ago.to_fs(:db) %>
