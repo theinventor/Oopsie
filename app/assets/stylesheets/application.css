@@ -13,6 +13,7 @@
   --bg-inset: #0b0d13;
 
   --text: #e4e5ea;
+  --text-muted: #9096a8;
   --text-secondary: #9096a8;
   --text-tertiary: #5c6278;
 
@@ -596,6 +597,20 @@ body > main.container > form input[type="password"] {
   letter-spacing: 0.06em;
 }
 
+.section-description {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-bottom: 1rem;
+}
+
+.status-enabled {
+  color: var(--green);
+  font-weight: 600;
+}
+.status-disabled {
+  color: var(--text-muted);
+}
+
 /* ═══════════════════════════════════════════
    Backtrace
    ═══════════════════════════════════════════ */
@@ -687,10 +702,56 @@ body > main.container > form input[type="password"] {
 .page-header a:hover { color: var(--text); }
 
 /* ═══════════════════════════════════════════
+   Breadcrumb
+   ═══════════════════════════════════════════ */
+
+.breadcrumb {
+  font-size: 0.8rem;
+  margin-bottom: 0.25rem;
+  color: var(--text-secondary);
+}
+
+/* ═══════════════════════════════════════════
+   Error Group Detail
+   ═══════════════════════════════════════════ */
+
+.error-group-message {
+  color: var(--text-muted);
+  margin: 0.25rem 0 0;
+  font-size: 0.9rem;
+}
+
+/* ═══════════════════════════════════════════
+   Project API Key (show page)
+   ═══════════════════════════════════════════ */
+
+.project-api-key {
+  margin-bottom: 1.5rem;
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
+/* ═══════════════════════════════════════════
    Inline form
    ═══════════════════════════════════════════ */
 
 .inline-form { display: inline; }
+
+.form-card {
+  padding: 1rem 1.25rem;
+  max-width: 480px;
+}
+
+.actions-cell {
+  text-align: right;
+  white-space: nowrap;
+}
+.actions-cell form.inline-form {
+  display: inline;
+}
+.actions-cell .btn {
+  margin-left: 0.25rem;
+}
 
 /* ═══════════════════════════════════════════
    Responsive

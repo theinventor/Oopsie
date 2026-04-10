@@ -1,4 +1,4 @@
-<%= form_with(model: [ project, notification_rule ], class: "card", style: "padding: 1rem 1.25rem; max-width: 480px;") do |f| %>
+<%= form_with(model: [ project, notification_rule ], class: "card form-card") do |f| %>
   <div class="form-group">
     <%= f.label :channel %>
     <%= f.select :channel, NotificationRule.channels.keys.map { |k| [k.titleize, k] },
