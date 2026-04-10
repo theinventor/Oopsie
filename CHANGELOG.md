@@ -2,6 +2,18 @@
 
 All notable changes to Oopsie will be documented in this file.
 
+## [0.1.2.1] - 2026-04-10
+
+### Added
+- Postmark SMTP configuration for outbound email notifications in production
+- Environment variables for all email settings (`POSTMARK_API_TOKEN`, `OOPSIE_HOST`, `OOPSIE_FROM_EMAIL`)
+- `.env.example` template with all required and optional environment variables
+
+### Changed
+- From address now configurable via `OOPSIE_FROM_EMAIL` environment variable (was hardcoded placeholder)
+- Production mailer host configurable via `OOPSIE_HOST` (was hardcoded `example.com`)
+- Delivery errors now raised in production so failures surface in logs
+
 ## [0.1.2.0] - 2026-04-05
 
 ### Fixed

@@ -147,11 +147,16 @@ All configuration is via environment variables:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
+| `SECRET_KEY_BASE` | *(dev auto)* | Required in production |
+| `OOPSIE_HOST` | `oopsie.example.com` | Public hostname, used for links in notification emails |
+| `OOPSIE_FROM_EMAIL` | `notifications@example.com` | From address for outbound notification emails |
+| `POSTMARK_API_TOKEN` | — | Postmark server API token for outbound email |
 | `OOPSIE_ADMIN_EMAIL` | `admin@example.com` | Initial admin email (used on first `db:seed`) |
 | `OOPSIE_ADMIN_PASSWORD` | *(random)* | Initial admin password (printed on first run) |
 | `OOPSIE_RETENTION_DAYS` | `90` | Days to keep occurrence data before cleanup |
 | `OOPSIE_SKIP_DEMO` | — | Set to `1` to skip demo data in `db:seed` |
-| `SECRET_KEY_BASE` | *(dev auto)* | Required in production |
+
+See `.env.example` for a starter template.
 
 ## Fingerprinting
 
