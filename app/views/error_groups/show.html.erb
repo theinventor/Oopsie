@@ -1,11 +1,11 @@
 <div class="page-header">
   <div>
-    <div style="font-size: 0.8rem; margin-bottom: 0.25rem;">
+    <div class="breadcrumb">
       <%= link_to @project.name, project_path(@project) %> &rsaquo; Error Group
     </div>
     <h1 class="error-class" style="font-size: 1.4rem;"><%= @error_group.error_class %></h1>
     <% if @error_group.message.present? %>
-      <p style="color: var(--text-muted); margin: 0.25rem 0 0; font-size: 0.9rem;"><%= @error_group.message %></p>
+      <p class="error-group-message"><%= @error_group.message %></p>
     <% end %>
   </div>
   <div class="status-actions">
@@ -53,7 +53,7 @@
   <% ctx = @latest.context.is_a?(String) ? (JSON.parse(@latest.context) rescue nil) : @latest.context %>
   <% if ctx.present? && ctx.respond_to?(:any?) && ctx.any? %>
     <h2 class="section-title">Context</h2>
-    <div class="card" style="padding: 1rem;">
+    <div class="card" style="overflow: hidden;">
       <pre class="context-json"><%= JSON.pretty_generate(ctx) %></pre>
     </div>
   <% end %>
@@ -61,7 +61,7 @@
   <% srv = @latest.server_info.is_a?(String) ? (JSON.parse(@latest.server_info) rescue nil) : @latest.server_info %>
   <% if srv.present? && srv.respond_to?(:any?) && srv.any? %>
     <h2 class="section-title">Server</h2>
-    <div class="card" style="padding: 1rem;">
+    <div class="card" style="overflow: hidden;">
       <pre class="context-json"><%= JSON.pretty_generate(srv) %></pre>
     </div>
   <% end %>
