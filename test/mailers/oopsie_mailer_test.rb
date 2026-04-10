@@ -56,4 +56,52 @@ class OopsieMailerTest < ActionMailer::TestCase
 
     assert_match "app/models/user.rb:42", email.body.encoded
   end
+
+  test "sends from the configured address" do
+    email = OopsieMailer.error_notification(
+      notification_rule: @rule,
+      error_group: @error_group,
+      occurrence: @occurrence,
+      is_regression: false
+    )
+
+    assert_includes email.from, "notifications@example.com"
+  end
+
+  test "includes link to error group" do
+    email = OopsieMailer.error_notification(
+      notification_rule: @rule,
+      error_group: @error_group,
+      occurrence: @occurrence,
+      is_regression: false
+    )
+
+    assert_match "/projects/#{@project.id}/error_groups/#{@error_group.id}", email.body.encoded
+  end
+
+  test "includes both html and text parts" do
+    email = OopsieMailer.error_notification(
+      notification_rule: @rule,
+      error_group: @error_group,
+      occurrence: @occurrence,
+      is_regression: false
+    )
+
+    assert email.multipart?
+    assert email.html_part.present?
+    assert email.text_part.present?
+  end
+
+  test "handles occurrence with no backtrace" do
+    @occurrence.update!(backtrace: nil)
+
+    email = OopsieMailer.error_notification(
+      notification_rule: @rule,
+      error_group: @error_group,
+      occurrence: @occurrence,
+      is_regression: false
+    )
+
+    assert_match "RuntimeError", email.body.encoded
+  end
 end

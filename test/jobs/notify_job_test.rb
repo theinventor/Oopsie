@@ -62,4 +62,37 @@ class NotifyJobTest < ActiveJob::TestCase
       )
     end
   end
+
+  test "handles missing occurrence gracefully" do
+    assert_nothing_raised do
+      NotifyJob.perform_now(
+        error_group_id: @error_group.id,
+        occurrence_id: -1,
+        is_regression: false
+      )
+    end
+  end
+
+  test "dispatches to multiple enabled rules" do
+    @project.notification_rules.create!(channel: :email, destination: "dev@example.com", enabled: true)
+
+    assert_enqueued_jobs 2, only: ActionMailer::MailDeliveryJob do
+      NotifyJob.perform_now(
+        error_group_id: @error_group.id,
+        occurrence_id: @occurrence.id,
+        is_regression: false
+      )
+    end
+  end
+
+  test "passes is_regression flag through to mailer" do
+    NotifyJob.perform_now(
+      error_group_id: @error_group.id,
+      occurrence_id: @occurrence.id,
+      is_regression: true
+    )
+
+    mail_job = queue_adapter.enqueued_jobs.find { |j| j["job_class"] == "ActionMailer::MailDeliveryJob" }
+    assert mail_job.present?
+  end
 end
