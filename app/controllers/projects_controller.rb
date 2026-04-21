@@ -1,5 +1,5 @@
 class ProjectsController < ApplicationController
-  before_action :set_project, only: [ :show, :edit, :update, :destroy, :settings ]
+  before_action :set_project, only: [ :show, :edit, :update, :destroy, :settings, :rotate_key ]
 
   def index
     unresolved_count_sql = ActiveRecord::Base.sanitize_sql_array(
@@ -43,6 +43,11 @@ class ProjectsController < ApplicationController
     else
       render :edit, status: :unprocessable_entity
     end
+  end
+
+  def rotate_key
+    @project.regenerate_api_key!
+    redirect_to settings_project_path(@project), notice: "Project key regenerated. Update any integrations using the old key."
   end
 
   def destroy

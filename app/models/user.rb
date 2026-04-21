@@ -8,6 +8,10 @@ class User < ApplicationRecord
 
   before_validation :generate_api_key, on: :create
 
+  def regenerate_api_key!
+    update!(api_key: SecureRandom.hex(32))
+  end
+
   private
 
   def generate_api_key
