@@ -2,6 +2,16 @@
 
 All notable changes to Oopsie will be documented in this file.
 
+## [0.1.3.0] - 2026-04-20
+
+### Changed
+- CLI rewritten (v0.2.0) around user API keys: one key, every project. Project-scoped commands now send `X-Project-Id`, set automatically when you pin a project.
+- `oopsie whoami` and `oopsie projects` show current auth, accessible projects, and unresolved counts at a glance.
+- Config entries renamed from "projects" to "connections" (auto-migrated on first run). Each connection can pin a default remote project via `oopsie config set-project <name-or-id>`.
+- Pinned projects store `{id, name}` so server-side renames break the pin instead of silently retargeting.
+- Unknown flags (e.g. `--ststus`) fail loudly instead of being silently ignored.
+- README and in-app CLI docs updated to document user vs project keys and the `X-Project-Id` header for scoped endpoints.
+
 ## [0.1.2.1] - 2026-04-10
 
 ### Added

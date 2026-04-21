@@ -18,14 +18,16 @@ sudo mv oopsie /usr/local/bin/  # optional: add to PATH</code></pre>
 
 <div class="cli-section card">
   <h2>Setup</h2>
-  <p>Add your Oopsie server using your <strong>User API Key</strong> (found on the Account page) for access to all projects:</p>
-  <pre><code>oopsie config add myserver --server https://your-oopsie-instance.com --key YOUR_USER_API_KEY</code></pre>
-  <p class="text-secondary">Or use a <strong>Project Key</strong> (found on the project settings page) for single-project access:</p>
+  <p>Add a <strong>connection</strong> — a server URL plus an API key. Use your <strong>User API Key</strong> (from the <%= link_to "Account page", account_path %>) to reach every project with one key:</p>
+  <pre><code>oopsie config add prod --server https://your-oopsie-instance.com --key YOUR_USER_API_KEY</code></pre>
+  <p class="text-secondary">Or use a <strong>Project Key</strong> (from project settings) if you only need one project:</p>
   <pre><code>oopsie config add myproject --server https://your-oopsie-instance.com --key YOUR_PROJECT_KEY</code></pre>
+  <p>With a user key, pin the project you work with most so you don't have to pass <code>--project</code> every time:</p>
+  <pre><code>oopsie config set-project myapp</code></pre>
 </div>
 
 <div class="cli-section card">
-  <h2>Usage</h2>
+  <h2>Everyday Commands</h2>
   <table class="cli-commands-table">
     <thead>
       <tr>
@@ -34,8 +36,10 @@ sudo mv oopsie /usr/local/bin/  # optional: add to PATH</code></pre>
       </tr>
     </thead>
     <tbody>
-      <tr><td><code>oopsie project</code></td><td>Show project summary</td></tr>
-      <tr><td><code>oopsie errors</code></td><td>List error groups</td></tr>
+      <tr><td><code>oopsie whoami</code></td><td>Show current connection, auth type, and project access</td></tr>
+      <tr><td><code>oopsie projects</code></td><td>List all projects you can access (user key) or the one project (project key)</td></tr>
+      <tr><td><code>oopsie project</code></td><td>Summary of the active project (pinned or <code>--project</code>)</td></tr>
+      <tr><td><code>oopsie errors</code></td><td>List error groups for the active project</td></tr>
       <tr><td><code>oopsie errors --status resolved</code></td><td>Filter by status (unresolved/resolved/ignored)</td></tr>
       <tr><td><code>oopsie show &lt;id&gt;</code></td><td>Show error group details and recent occurrences</td></tr>
       <tr><td><code>oopsie resolve &lt;id&gt;</code></td><td>Mark as resolved</td></tr>
@@ -46,11 +50,27 @@ sudo mv oopsie /usr/local/bin/  # optional: add to PATH</code></pre>
 </div>
 
 <div class="cli-section card">
-  <h2>Multi-Project Support</h2>
-  <pre><code>oopsie config add production --server https://oopsie.example.com --key PROD_KEY
-oopsie config add staging --server https://staging.oopsie.example.com --key STAGING_KEY
-oopsie config use production   # set default
-oopsie errors --project staging # or override per-command</code></pre>
+  <h2>Global Flags</h2>
+  <table class="cli-commands-table">
+    <thead>
+      <tr><th>Flag</th><th>Description</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>-p, --project &lt;name&gt;</code></td><td>Scope to a specific project for this command (overrides pinned default)</td></tr>
+      <tr><td><code>-c, --connection &lt;name&gt;</code></td><td>Use a non-default connection</td></tr>
+    </tbody>
+  </table>
+  <pre><code>oopsie errors --project myapp       # one-off override
+oopsie errors -c staging -p myapp   # different server, specific project</code></pre>
+</div>
+
+<div class="cli-section card">
+  <h2>Multiple Connections</h2>
+  <p>Add connections for each server/environment. <code>config use</code> picks the default.</p>
+  <pre><code>oopsie config add prod    --server https://oopsie.example.com         --key USER_KEY
+oopsie config add staging --server https://staging.oopsie.example.com --key USER_KEY
+oopsie config use prod
+oopsie config list</code></pre>
 </div>
 
 <div class="cli-section card">
@@ -65,7 +85,7 @@ oopsie errors --project staging # or override per-command</code></pre>
       </tr>
     </thead>
     <tbody>
-      <tr><td><code>GET</code></td><td><code>/api/v1/project</code></td><td>Project info</td></tr>
+      <tr><td><code>GET</code></td><td><code>/api/v1/project</code></td><td>One project (project key) or all accessible projects (user key)</td></tr>
       <tr><td><code>GET</code></td><td><code>/api/v1/error_groups</code></td><td>List error groups (?status=, ?limit=, ?offset=)</td></tr>
       <tr><td><code>GET</code></td><td><code>/api/v1/error_groups/:id</code></td><td>Error group details + occurrences</td></tr>
       <tr><td><code>PATCH</code></td><td><code>/api/v1/error_groups/:id/resolve</code></td><td>Mark resolved</td></tr>
@@ -73,5 +93,5 @@ oopsie errors --project staging # or override per-command</code></pre>
       <tr><td><code>PATCH</code></td><td><code>/api/v1/error_groups/:id/unresolve</code></td><td>Reopen</td></tr>
     </tbody>
   </table>
-  <p class="text-secondary">All endpoints require <code>Authorization: Bearer YOUR_KEY</code> header (User API Key or Project Key). When using a User API Key with project-scoped endpoints, pass <code>project_id</code> as a query param or <code>X-Project-Id</code> header.</p>
+  <p class="text-secondary">All endpoints require <code>Authorization: Bearer YOUR_KEY</code>. When calling project-scoped endpoints with a User API Key, include <code>project_id</code> as a query param or <code>X-Project-Id</code> as a header.</p>
 </div>

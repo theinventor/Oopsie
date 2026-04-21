@@ -41,9 +41,22 @@ Visit [http://localhost:3000](http://localhost:3000) and log in with the credent
 - Propshaft (assets)
 - No Redis. No Postgres. No external services.
 
+## API Keys
+
+Oopsie has two kinds of API keys:
+
+| Key type | Scope | Where to find it | Best for |
+|----------|-------|------------------|----------|
+| **Project key** | One project | Project → Settings | Reporting exceptions from an app |
+| **User key** | All your projects | Account page | CLI, cross-project tooling, dashboards |
+
+Both authenticate via `Authorization: Bearer <key>`. When you use a user key on a
+project-scoped endpoint, pass the project as a `project_id` query param or
+`X-Project-Id` header. Keys can be rotated from the UI — old keys invalidate immediately.
+
 ## Client Integration
 
-Oopsie accepts the [ExceptionReporter](https://github.com/theinventor/exception_reporter) webhook payload. In your client app:
+Oopsie accepts the [ExceptionReporter](https://github.com/theinventor/exception_reporter) webhook payload. Use a **project key** for reporting from a client app:
 
 ```ruby
 ExceptionReporter.configure do |config|
@@ -54,18 +67,45 @@ ExceptionReporter.configure do |config|
 end
 ```
 
+## CLI
+
+A small bash client is included at `cli/oopsie` for managing exceptions from the terminal or from AI assistants. Requires `curl` and `jq`.
+
+```bash
+# Install
+curl -fsSL https://raw.githubusercontent.com/theinventor/Oopsie/main/cli/oopsie -o oopsie
+chmod +x oopsie && sudo mv oopsie /usr/local/bin/
+
+# Configure a connection (use your User API key from the Account page)
+oopsie config add prod --server https://your-oopsie.com --key YOUR_USER_KEY
+
+# Pin a default project for this connection (optional)
+oopsie config set-project myapp
+
+# Everyday use
+oopsie whoami                     # what am I logged in as?
+oopsie projects                   # list everything I can access
+oopsie errors --status unresolved # what's broken?
+oopsie show 42                    # full details + stack traces
+oopsie resolve 42                 # mark fixed
+```
+
+Override the scope for any command with `-p/--project <name>` or the connection with `-c/--connection <name>`. Full help: `oopsie help`.
+
 ## API
 
 ### POST /api/v1/exceptions
 
-Report an exception. Requires a project API key.
+Report an exception. Accepts a **project key** or a **user key** (with project context).
 
 **Headers:**
 
 ```
-Authorization: Bearer <project_api_key>
+Authorization: Bearer <api_key>
 Content-Type: application/json
 ```
+
+When using a user key, also pass `X-Project-Id: <id>` or `?project_id=<id>`.
 
 **Payload:**
 
@@ -120,15 +160,31 @@ Content-Type: application/json
 
 | Status | Meaning |
 |--------|---------|
+| 400 | User key used without project context — pass `project_id` or `X-Project-Id` |
 | 401 | Invalid or missing API key |
 | 422 | Malformed payload (missing `error` or `error.class_name`) |
-| 429 | Rate limit exceeded (100 requests/minute/project) |
+| 429 | Rate limit exceeded (100 requests/minute per key) |
+
+### Other endpoints
+
+Authenticated with a Bearer token. Project-scoped endpoints need a project context (implicit with a project key, explicit with a user key via `X-Project-Id` header or `project_id` param).
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET`    | `/api/v1/project` | Project summary — single project with a project key, `{projects: [...]}` with a user key |
+| `GET`    | `/api/v1/error_groups` | List error groups (`?status=`, `?limit=`, `?offset=`) |
+| `GET`    | `/api/v1/error_groups/:id` | Group details + recent occurrences |
+| `PATCH`  | `/api/v1/error_groups/:id/resolve` | Mark resolved |
+| `PATCH`  | `/api/v1/error_groups/:id/ignore` | Archive (ignore) |
+| `PATCH`  | `/api/v1/error_groups/:id/unresolve` | Reopen |
 
 ### curl Example
 
+With a project key (no project context needed):
+
 ```bash
 curl -X POST http://localhost:3000/api/v1/exceptions \
-  -H 'Authorization: Bearer YOUR_API_KEY' \
+  -H 'Authorization: Bearer YOUR_PROJECT_KEY' \
   -H 'Content-Type: application/json' \
   -d '{
     "error": {
@@ -139,6 +195,16 @@ curl -X POST http://localhost:3000/api/v1/exceptions \
     },
     "app": {"environment": "development"}
   }'
+```
+
+With a user key (cross-project) — add `X-Project-Id`:
+
+```bash
+curl -X POST http://localhost:3000/api/v1/exceptions \
+  -H 'Authorization: Bearer YOUR_USER_KEY' \
+  -H 'X-Project-Id: 42' \
+  -H 'Content-Type: application/json' \
+  -d '{...}'
 ```
 
 ## Configuration

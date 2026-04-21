@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
+# oopsie — command-line client for the Oopsie exception tracker
 set -euo pipefail
 
-VERSION="0.1.0"
+VERSION="0.2.0"
 CONFIG_DIR="${OOPSIE_CONFIG_DIR:-$HOME/.oopsie}"
 CONFIG_FILE="$CONFIG_DIR/config.json"
 
@@ -16,96 +17,173 @@ need jq
 ensure_config() {
   if [ ! -f "$CONFIG_FILE" ]; then
     mkdir -p "$CONFIG_DIR" && chmod 700 "$CONFIG_DIR"
-    echo '{"projects":{},"default":null}' > "$CONFIG_FILE"
+    echo '{"connections":{},"default":null}' > "$CONFIG_FILE"
     chmod 600 "$CONFIG_FILE"
+    return
+  fi
+
+  # Migrate legacy .projects → .connections (one-time, silent)
+  if jq -e '(.projects | type == "object") and (.connections | not)' "$CONFIG_FILE" >/dev/null 2>&1; then
+    local tmp="$CONFIG_FILE.tmp"
+    jq '.connections = .projects | del(.projects)' "$CONFIG_FILE" > "$tmp" \
+      && chmod 600 "$tmp" && mv "$tmp" "$CONFIG_FILE"
   fi
 }
 
-read_config() { jq -r "$@" "$CONFIG_FILE"; }
-
+read_config()  { jq -r "$@" "$CONFIG_FILE"; }
 write_config() {
   local tmp="$CONFIG_FILE.tmp"
   jq "$@" "$CONFIG_FILE" > "$tmp" && chmod 600 "$tmp" && mv "$tmp" "$CONFIG_FILE"
 }
 
-# Resolve which project to use: --project flag > default
-resolve_project() {
-  local name="${PROJECT_FLAG:-$(read_config '.default // empty')}"
-  [ -z "$name" ] && die "No project configured. Run 'oopsie config add' first."
+# Resolve which connection to use: --connection flag > default
+# Sets CONNECTION_NAME, CONNECTION_SERVER, CONNECTION_KEY,
+#      CONNECTION_PROJECT_ID, CONNECTION_PROJECT_NAME
+# The pinned project is stored as {id, name} in new configs; legacy string is
+# treated as name-only (id left empty, resolved at use-time).
+resolve_connection() {
+  local name="${CONNECTION_FLAG:-$(read_config '.default // empty')}"
+  [ -z "$name" ] && die "No connection configured. Run 'oopsie config add' to get started."
 
   local server key
-  server=$(read_config ".projects[\"$name\"].server // empty")
-  key=$(read_config ".projects[\"$name\"].key // empty")
-  [ -z "$server" ] && die "Project '$name' not found. Run 'oopsie config list'."
+  server=$(read_config --arg n "$name" '.connections[$n].server // empty')
+  key=$(read_config --arg n "$name" '.connections[$n].key // empty')
+  [ -z "$server" ] && die "Connection '$name' not found. Run 'oopsie config list'."
 
-  PROJECT_NAME="$name"
-  PROJECT_SERVER="${server%/}"
-  PROJECT_KEY="$key"
+  CONNECTION_NAME="$name"
+  CONNECTION_SERVER="${server%/}"
+  CONNECTION_KEY="$key"
+  CONNECTION_PROJECT_ID=$(read_config --arg n "$name" '
+    .connections[$n].project |
+    if type == "object" then .id // empty
+    elif type == "string" and test("^[0-9]+$") then .
+    else empty end' )
+  CONNECTION_PROJECT_NAME=$(read_config --arg n "$name" '
+    .connections[$n].project |
+    if type == "object" then .name // empty
+    elif type == "string" and (test("^[0-9]+$") | not) then .
+    else empty end' )
 }
 
-# Make an API request. Usage: api GET /path [query_params]
+# api METHOD PATH [query=val ...]
+# Sends X-Project-Id header when SCOPED_PROJECT_ID is set.
 api() {
   local method="$1" path="$2"
   shift 2
-  local url="${PROJECT_SERVER}${path}"
-
-  # Append query string if extra args provided
+  local url="${CONNECTION_SERVER}${path}"
   if [ $# -gt 0 ]; then
     url="${url}?$(printf '%s&' "$@")"
     url="${url%&}"
   fi
 
-  local http_code body
-  body=$(curl -s -w "\n%{http_code}" \
-    -X "$method" \
-    -H "Authorization: Bearer ${PROJECT_KEY}" \
-    -H "Accept: application/json" \
-    -H "Content-Type: application/json" \
-    --connect-timeout 10 \
-    --max-time 30 \
-    "$url" 2>/dev/null) || die "Cannot connect to ${PROJECT_SERVER}. Is the server running?"
+  local args=(
+    -s -w "\n%{http_code}"
+    -X "$method"
+    -H "Authorization: Bearer ${CONNECTION_KEY}"
+    -H "Accept: application/json"
+    -H "Content-Type: application/json"
+    --connect-timeout 10
+    --max-time 30
+  )
+  if [ -n "${SCOPED_PROJECT_ID:-}" ]; then
+    args+=(-H "X-Project-Id: ${SCOPED_PROJECT_ID}")
+  fi
+
+  local body http_code err
+  body=$(curl "${args[@]}" "$url" 2>/dev/null) || die "Cannot connect to ${CONNECTION_SERVER}. Is the server running?"
 
   http_code=$(echo "$body" | tail -1)
   body=$(echo "$body" | sed '$d')
 
   case "$http_code" in
     2*) echo "$body" ;;
-    401) die "Invalid API key. Check your configuration." ;;
+    400)
+      err=$(echo "$body" | jq -r '.error // "Bad request"' 2>/dev/null || echo "Bad request")
+      if [[ "$err" == *"Project context required"* ]]; then
+        die "No project scoped. Use '--project <name>' or 'oopsie config set-project <name>'."
+      fi
+      die "$err"
+      ;;
+    401) die "Invalid API key. Run 'oopsie whoami' to check." ;;
+    403) die "Forbidden. Your key doesn't have access to that project." ;;
     404) die "Not found." ;;
     429) die "Rate limit exceeded. Try again in a minute." ;;
     *)   die "Server returned HTTP $http_code: $body" ;;
   esac
 }
 
-relative_time() {
-  local iso="$1"
-  # Try GNU date, then BSD date, then fall back to raw string
-  local ts
-  ts=$(date -d "$iso" +%s 2>/dev/null || date -j -f "%Y-%m-%dT%H:%M:%S" "${iso%%.*}" +%s 2>/dev/null || echo "")
-  if [ -z "$ts" ]; then
-    echo "$iso"
+# Fetch accessible projects as TSV (id, name, unresolved, total, created).
+# Temporarily clears X-Project-Id to get the full list.
+fetch_projects_tsv() {
+  local saved="${SCOPED_PROJECT_ID:-}"
+  SCOPED_PROJECT_ID=""
+  local data
+  data=$(api GET /api/v1/project)
+  SCOPED_PROJECT_ID="$saved"
+
+  if echo "$data" | jq -e '.projects' >/dev/null 2>&1; then
+    echo "$data" | jq -r '.projects[] | [.id, .name, .unresolved_count, .error_groups_count, .created_at] | @tsv'
+  else
+    echo "$data" | jq -r '[.id, .name, .unresolved_count, .error_groups_count, .created_at] | @tsv'
+  fi
+}
+
+# Resolve a --project argument (numeric id OR name) to a numeric id.
+resolve_project_id_or_die() {
+  local input="$1"
+  if [[ "$input" =~ ^[0-9]+$ ]]; then
+    echo "$input"; return
+  fi
+  local id
+  id=$(fetch_projects_tsv | awk -F'\t' -v n="$input" '$2==n {print $1; exit}')
+  [ -z "$id" ] && die "Project '$input' not accessible on ${CONNECTION_SERVER}. Run 'oopsie projects'."
+  echo "$id"
+}
+
+# Determine project scope for this command:
+#   1. --project flag (name or id)
+#   2. connection's pinned project id (no network round-trip)
+#   3. connection's pinned project name (legacy, resolves via network)
+#   4. unset (server decides: project-key works, user-key errors)
+scope_project() {
+  local flag="${PROJECT_ARG:-}"
+  if [ -n "$flag" ]; then
+    SCOPED_PROJECT_ID=$(resolve_project_id_or_die "$flag")
     return
   fi
+  if [ -n "${CONNECTION_PROJECT_ID:-}" ]; then
+    SCOPED_PROJECT_ID="$CONNECTION_PROJECT_ID"
+    return
+  fi
+  if [ -n "${CONNECTION_PROJECT_NAME:-}" ]; then
+    SCOPED_PROJECT_ID=$(resolve_project_id_or_die "$CONNECTION_PROJECT_NAME")
+    return
+  fi
+  SCOPED_PROJECT_ID=""
+}
 
+# ── Display helpers ─────────────────────────────────────────────────────
+
+relative_time() {
+  local iso="$1"
+  local ts
+  ts=$(date -d "$iso" +%s 2>/dev/null || date -j -f "%Y-%m-%dT%H:%M:%S" "${iso%%.*}" +%s 2>/dev/null || echo "")
+  if [ -z "$ts" ]; then echo "$iso"; return; fi
   local now diff
   now=$(date +%s)
   diff=$((now - ts))
-
-  if   [ $diff -lt 60 ];    then echo "just now"
-  elif [ $diff -lt 3600 ];  then echo "$((diff / 60))m ago"
-  elif [ $diff -lt 86400 ]; then echo "$((diff / 3600))h ago"
-  elif [ $diff -lt 604800 ];then echo "$((diff / 86400))d ago"
+  if   [ $diff -lt 60 ];     then echo "just now"
+  elif [ $diff -lt 3600 ];   then echo "$((diff / 60))m ago"
+  elif [ $diff -lt 86400 ];  then echo "$((diff / 3600))h ago"
+  elif [ $diff -lt 604800 ]; then echo "$((diff / 86400))d ago"
   else echo "${iso:0:10}"
   fi
 }
 
-truncate() {
+shorten() {
   local str="$1" max="${2:-80}"
-  if [ ${#str} -gt "$max" ]; then
-    echo "${str:0:$((max-3))}..."
-  else
-    echo "$str"
-  fi
+  if [ ${#str} -gt "$max" ]; then echo "${str:0:$((max-3))}..."
+  else echo "$str"; fi
 }
 
 status_badge() {
@@ -117,124 +195,249 @@ status_badge() {
   esac
 }
 
-# ── Config Commands ─────────────────────────────────────────────────────
+# ── Config commands ─────────────────────────────────────────────────────
 
 cmd_config_add() {
-  local name="" server="" key=""
+  local name="" server="" key="" project_arg=""
   [ $# -ge 1 ] && { name="$1"; shift; }
-
   while [ $# -gt 0 ]; do
     case "$1" in
-      --server) server="$2"; shift 2 ;;
-      --key)    key="$2";    shift 2 ;;
-      *)        shift ;;
+      --server)        server="$2";       shift 2 ;;
+      --key)           key="$2";          shift 2 ;;
+      --project|--pin) project_arg="$2";  shift 2 ;;
+      -*)              die "Unknown flag: $1" ;;
+      *)               shift ;;
     esac
   done
 
-  [ -z "$name" ]   && die "Usage: oopsie config add <name> --server <url> --key <api_key>"
+  [ -z "$name" ]   && die "Usage: oopsie config add <name> --server <url> --key <api_key> [--project <name-or-id>]"
   [ -z "$server" ] && die "Missing --server"
   [ -z "$key" ]    && die "Missing --key"
 
   ensure_config
 
-  write_config \
-    --arg n "$name" --arg s "$server" --arg k "$key" \
-    '.projects[$n] = {server: $s, key: $k} | if .default == null then .default = $n else . end'
+  local obj
+  obj=$(jq -n --arg s "$server" --arg k "$key" '{server:$s, key:$k}')
+  write_config --arg n "$name" --argjson o "$obj" \
+    '.connections[$n] = $o | if .default == null then .default = $n else . end'
 
-  echo "Added project '$name' ($server)"
+  echo "Added connection '$name' → ${server}"
   local default
   default=$(read_config '.default')
-  if [ "$default" = "$name" ]; then
-    echo "Set as default."
+  [ "$default" = "$name" ] && echo "  Set as default."
+
+  if [ -n "$project_arg" ]; then
+    CONNECTION_FLAG="$name"
+    resolve_connection
+    pin_project_on_connection "$project_arg"
   fi
 }
 
 cmd_config_list() {
   ensure_config
   local count
-  count=$(read_config '.projects | length')
-
+  count=$(read_config '.connections | length')
   if [ "$count" -eq 0 ]; then
-    echo "No projects configured. Run 'oopsie config add' to get started."
+    echo "No connections. Run 'oopsie config add' to get started."
     return
   fi
 
   local default
   default=$(read_config '.default // ""')
 
-  local entries
-  entries=$(read_config '.projects | to_entries[] | "\(.key)\t\(.value.server)\t\(.value.key)"')
-
-  while IFS=$'\t' read -r name server key; do
-    local marker=""
-    [ "$name" = "$default" ] && marker=" *"
-    echo "  ${name}${marker}  ${server}  (key: ${key:0:8}...)"
-  done <<< "$entries"
+  echo "CONNECTIONS ($count)"
   echo ""
-  echo "  * = default project"
+  read_config '.connections | to_entries[] |
+    [.key, .value.server, .value.key,
+     (if .value.project | type == "object" then "\(.value.project.name) (id \(.value.project.id))"
+      elif .value.project then .value.project
+      else "" end)] | @tsv' | \
+  while IFS=$'\t' read -r name server key project; do
+    local marker=""
+    [ "$name" = "$default" ] && marker="  (default)"
+    echo "  ${name}${marker}"
+    echo "    ${server}"
+    if [ -n "$project" ]; then
+      echo "    key ${key:0:8}...  ·  project: ${project}"
+    else
+      echo "    key ${key:0:8}..."
+    fi
+    echo ""
+  done
 }
 
 cmd_config_remove() {
   local name="${1:-}"
   [ -z "$name" ] && die "Usage: oopsie config remove <name>"
   ensure_config
-
   local exists
-  exists=$(read_config --arg n "$name" '.projects[$n] // empty')
-  [ -z "$exists" ] && die "Project '$name' not found in config."
-
+  exists=$(read_config --arg n "$name" '.connections[$n] // empty')
+  [ -z "$exists" ] && die "Connection '$name' not found."
   write_config --arg n "$name" \
-    'del(.projects[$n]) | if .default == $n then .default = (.projects | keys | first // null) else . end'
-
-  echo "Removed project '$name'."
+    'del(.connections[$n]) | if .default == $n then .default = (.connections | keys | first // null) else . end'
+  echo "Removed connection '$name'."
 }
 
 cmd_config_use() {
   local name="${1:-}"
   [ -z "$name" ] && die "Usage: oopsie config use <name>"
   ensure_config
-
   local exists
-  exists=$(read_config --arg n "$name" '.projects[$n] // empty')
-  [ -z "$exists" ] && die "Project '$name' not found. Run 'oopsie config list'."
-
+  exists=$(read_config --arg n "$name" '.connections[$n] // empty')
+  [ -z "$exists" ] && die "Connection '$name' not found."
   write_config --arg n "$name" '.default = $n'
-  echo "Default project set to '$name'."
+  echo "Default connection set to '$name'."
+}
+
+# Resolve a project (by name or id), fetch the canonical name, and pin {id,name}
+# on the current CONNECTION_NAME. A rename on the server will break the pin
+# (bad match on id) rather than silently retarget a different project.
+pin_project_on_connection() {
+  local input="$1"
+  local id name
+  id=$(resolve_project_id_or_die "$input")
+  # Read the canonical name for this id from the projects list.
+  name=$(fetch_projects_tsv | awk -F'\t' -v i="$id" '$1==i {print $2; exit}')
+  [ -z "$name" ] && die "Could not resolve canonical name for project id '$id'."
+  write_config --arg n "$CONNECTION_NAME" --argjson p "{\"id\":$id,\"name\":$(jq -Rn --arg s "$name" '$s')}" \
+    '.connections[$n].project = $p'
+  echo "Pinned project '$name' (id $id) on connection '$CONNECTION_NAME'."
+}
+
+cmd_config_set_project() {
+  ensure_config
+  resolve_connection
+  local proj="${1:-}"
+  if [ -z "$proj" ]; then
+    die "Usage: oopsie config set-project <name-or-id> | --clear"
+  fi
+  if [ "$proj" = "--clear" ]; then
+    write_config --arg n "$CONNECTION_NAME" 'del(.connections[$n].project)'
+    echo "Cleared pinned project on connection '$CONNECTION_NAME'."
+    return
+  fi
+  pin_project_on_connection "$proj"
 }
 
 cmd_config() {
   local sub="${1:-help}"; shift 2>/dev/null || true
   case "$sub" in
-    add)    cmd_config_add "$@" ;;
-    list)   cmd_config_list ;;
-    remove) cmd_config_remove "$@" ;;
-    use)    cmd_config_use "$@" ;;
+    add)         cmd_config_add "$@" ;;
+    list)        cmd_config_list ;;
+    remove)      cmd_config_remove "$@" ;;
+    use)         cmd_config_use "$@" ;;
+    set-project) cmd_config_set_project "$@" ;;
     *)
       cat <<EOF
 Usage:
-  oopsie config add <name> --server <url> --key <api_key>
+  oopsie config add <name> --server <url> --key <api_key> [--project <name>]
   oopsie config list
   oopsie config remove <name>
-  oopsie config use <name>
+  oopsie config use <name>                      Set default connection
+  oopsie config set-project <name> | --clear    Pin a default project on current connection
 EOF
       ;;
   esac
 }
 
-# ── Project Command ─────────────────────────────────────────────────────
+# ── whoami / projects ───────────────────────────────────────────────────
 
-cmd_project() {
-  resolve_project
+cmd_whoami() {
+  resolve_connection
+  SCOPED_PROJECT_ID=""
   local data
   data=$(api GET /api/v1/project)
 
-  echo "Project: $(echo "$data" | jq -r '.name')"
-  echo "  Total error groups:  $(echo "$data" | jq -r '.error_groups_count')"
-  echo "  Unresolved:          $(echo "$data" | jq -r '.unresolved_count')"
-  echo "  Created:             $(echo "$data" | jq -r '.created_at')"
+  local auth_type count
+  if echo "$data" | jq -e '.projects' >/dev/null 2>&1; then
+    auth_type="User API key (cross-project)"
+    count=$(echo "$data" | jq '.projects | length')
+  else
+    auth_type="Project API key"
+    count=1
+  fi
+
+  echo "Connection:  $CONNECTION_NAME"
+  echo "  Server:    $CONNECTION_SERVER"
+  echo "  Auth:      $auth_type"
+  echo "  Projects:  $count accessible"
+  if [ -n "${CONNECTION_PROJECT_NAME:-}" ]; then
+    if [ -n "${CONNECTION_PROJECT_ID:-}" ]; then
+      echo "  Project:   $CONNECTION_PROJECT_NAME (id $CONNECTION_PROJECT_ID, pinned)"
+    else
+      echo "  Project:   $CONNECTION_PROJECT_NAME (pinned, legacy name-only)"
+    fi
+  elif [ -n "${CONNECTION_PROJECT_ID:-}" ]; then
+    echo "  Project:   id $CONNECTION_PROJECT_ID (pinned)"
+  fi
 }
 
-# ── Errors Command ──────────────────────────────────────────────────────
+cmd_projects() {
+  resolve_connection
+  local rows
+  rows=$(fetch_projects_tsv)
+  local n
+  n=$(printf '%s\n' "$rows" | grep -c . || true)
+  if [ "$n" -eq 0 ]; then
+    echo "No projects accessible."
+    return
+  fi
+
+  echo "PROJECTS ($n)"
+  echo ""
+  printf "  %-25s  %10s  %7s  %5s\n" "NAME" "UNRESOLVED" "TOTAL" "ID"
+  local had_marker=0
+  while IFS=$'\t' read -r id name unresolved total created; do
+    local marker=""
+    if [ -n "${CONNECTION_PROJECT_ID:-}" ] && [ "$id" = "$CONNECTION_PROJECT_ID" ]; then
+      marker="  *"; had_marker=1
+    elif [ -z "${CONNECTION_PROJECT_ID:-}" ] && [ -n "${CONNECTION_PROJECT_NAME:-}" ] && [ "$name" = "$CONNECTION_PROJECT_NAME" ]; then
+      marker="  *"; had_marker=1
+    fi
+    printf "  %-25s  %10s  %7s  %5s%s\n" "$name" "$unresolved" "$total" "$id" "$marker"
+  done <<< "$rows"
+  if [ "$had_marker" = "1" ]; then
+    echo ""
+    echo "  * pinned default"
+  fi
+}
+
+# ── Project / errors commands ───────────────────────────────────────────
+
+cmd_project() {
+  resolve_connection
+  SCOPED_PROJECT_ID=""
+  local data
+  data=$(api GET /api/v1/project)
+
+  # Pick what to display: --project flag > pinned id > pinned name
+  local want="${PROJECT_ARG:-}"
+  if [ -z "$want" ]; then
+    if [ -n "${CONNECTION_PROJECT_ID:-}" ]; then want="$CONNECTION_PROJECT_ID"
+    elif [ -n "${CONNECTION_PROJECT_NAME:-}" ]; then want="$CONNECTION_PROJECT_NAME"
+    fi
+  fi
+
+  local proj_json
+  if echo "$data" | jq -e '.projects' >/dev/null 2>&1; then
+    if [ -z "$want" ]; then
+      die "User API key in use. Specify a project: '--project <name-or-id>' or 'oopsie config set-project <name>'."
+    fi
+    # Match by exact id first (unambiguous), then by name (may match multiple).
+    proj_json=$(echo "$data" | jq --arg n "$want" 'first(.projects[] | select((.id | tostring) == $n))')
+    [ -z "$proj_json" ] || [ "$proj_json" = "null" ] && \
+      proj_json=$(echo "$data" | jq --arg n "$want" 'first(.projects[] | select(.name == $n))')
+    [ -z "$proj_json" ] || [ "$proj_json" = "null" ] && \
+      die "Project '$want' not accessible. Run 'oopsie projects'."
+  else
+    proj_json="$data"
+  fi
+
+  echo "Project: $(echo "$proj_json" | jq -r '.name')"
+  echo "  Error groups:  $(echo "$proj_json" | jq -r '.error_groups_count')"
+  echo "  Unresolved:    $(echo "$proj_json" | jq -r '.unresolved_count')"
+  echo "  Created:       $(echo "$proj_json" | jq -r '.created_at')"
+}
 
 cmd_errors() {
   local params=()
@@ -243,26 +446,26 @@ cmd_errors() {
       --status) params+=("status=$2"); shift 2 ;;
       --limit)  params+=("limit=$2");  shift 2 ;;
       --offset) params+=("offset=$2"); shift 2 ;;
-      *)        shift ;;
+      -*)       die "Unknown flag: $1. Run 'oopsie help'." ;;
+      *)        die "Unexpected argument: $1. Run 'oopsie help'." ;;
     esac
   done
 
-  resolve_project
+  resolve_connection
+  scope_project
   local data
   data=$(api GET /api/v1/error_groups "${params[@]+"${params[@]}"}")
 
   local count total
   count=$(echo "$data" | jq '.error_groups | length')
   total=$(echo "$data" | jq '.total')
-
   if [ "$count" -eq 0 ]; then
     echo "No error groups found."
     return
   fi
 
-  echo "Error Groups ($count of $total):"
+  echo "Error groups ($count of $total):"
   echo ""
-
   echo "$data" | jq -c '.error_groups[]' | while read -r group; do
     local id status error_class message occ_count last_seen
     id=$(echo "$group" | jq -r '.id')
@@ -273,26 +476,24 @@ cmd_errors() {
     last_seen=$(echo "$group" | jq -r '.last_seen_at')
 
     echo "  #${id}  $(status_badge "$status")  ${error_class}"
-    echo "       $(truncate "$message" 80)"
+    echo "       $(shorten "$message" 80)"
     echo "       ${occ_count} occurrences · last seen $(relative_time "$last_seen")"
     echo ""
   done
 }
 
-# ── Show Command ────────────────────────────────────────────────────────
-
 cmd_show() {
   local id="${1:-}"
   [ -z "$id" ] && die "Usage: oopsie show <error_group_id>"
 
-  resolve_project
+  resolve_connection
+  scope_project
   local data
   data=$(api GET "/api/v1/error_groups/$id")
 
   local g
   g=$(echo "$data" | jq '.error_group')
-
-  echo "Error Group #$(echo "$g" | jq -r '.id')"
+  echo "Error group #$(echo "$g" | jq -r '.id')"
   echo "  Class:        $(echo "$g" | jq -r '.error_class')"
   echo "  Status:       $(status_badge "$(echo "$g" | jq -r '.status')")"
   echo "  Message:      $(echo "$g" | jq -r '.message // ""')"
@@ -302,22 +503,18 @@ cmd_show() {
 
   local occ_count
   occ_count=$(echo "$data" | jq '.occurrences | length')
-
   if [ "$occ_count" -gt 0 ]; then
     echo ""
-    echo "  Recent Occurrences:"
+    echo "  Recent occurrences:"
     echo ""
-
     echo "$data" | jq -c '.occurrences[]' | while read -r occ; do
       local oid occurred_at env msg
       oid=$(echo "$occ" | jq -r '.id')
       occurred_at=$(echo "$occ" | jq -r '.occurred_at')
       env=$(echo "$occ" | jq -r '.environment // "unknown"')
       msg=$(echo "$occ" | jq -r '.message // ""')
-
       echo "    #${oid}  ${occurred_at}  [${env}]"
-      echo "      $(truncate "$msg" 76)"
-
+      echo "      $(shorten "$msg" 76)"
       local file line method
       file=$(echo "$occ" | jq -r '.first_line.file // empty')
       if [ -n "$file" ]; then
@@ -325,38 +522,34 @@ cmd_show() {
         method=$(echo "$occ" | jq -r '.first_line.method // ""')
         echo "      at ${file}:${line} in ${method}"
       fi
-
       local ctx
       ctx=$(echo "$occ" | jq -r 'if .context != null and .context != {} then .context | tostring else empty end')
       [ -n "$ctx" ] && echo "      context: ${ctx}"
-
       echo ""
     done
   fi
 }
 
-# ── Action Commands ─────────────────────────────────────────────────────
-
 cmd_resolve() {
-  local id="${1:-}"
-  [ -z "$id" ] && die "Usage: oopsie resolve <error_group_id>"
-  resolve_project
+  local id="${1:-}"; [ -z "$id" ] && die "Usage: oopsie resolve <error_group_id>"
+  resolve_connection
+  scope_project
   api PATCH "/api/v1/error_groups/$id/resolve" >/dev/null
   echo "Resolved error group #${id}."
 }
 
 cmd_ignore() {
-  local id="${1:-}"
-  [ -z "$id" ] && die "Usage: oopsie ignore <error_group_id>"
-  resolve_project
+  local id="${1:-}"; [ -z "$id" ] && die "Usage: oopsie ignore <error_group_id>"
+  resolve_connection
+  scope_project
   api PATCH "/api/v1/error_groups/$id/ignore" >/dev/null
-  echo "Ignored (archived) error group #${id}."
+  echo "Ignored error group #${id}."
 }
 
 cmd_reopen() {
-  local id="${1:-}"
-  [ -z "$id" ] && die "Usage: oopsie reopen <error_group_id>"
-  resolve_project
+  local id="${1:-}"; [ -z "$id" ] && die "Usage: oopsie reopen <error_group_id>"
+  resolve_connection
+  scope_project
   api PATCH "/api/v1/error_groups/$id/unresolve" >/dev/null
   echo "Reopened error group #${id}."
 }
@@ -370,44 +563,62 @@ Oopsie CLI v${VERSION} — manage your exceptions from the command line
 Requires: curl, jq
 
 Setup:
-  oopsie config add <name> --server <url> --key <api_key>
+  oopsie config add <name> --server <url> --key <api_key> [--project <name>]
   oopsie config list
+  oopsie config use <name>                     Set the default connection
+  oopsie config set-project <name>|--clear     Pin a default project on current connection
   oopsie config remove <name>
-  oopsie config use <name>          Set the default project
 
 Info:
-  oopsie project                    Show project summary
+  oopsie whoami                                Current auth + project access
+  oopsie projects                              List projects you can access
+  oopsie project                               Summary of the active project
 
 Errors:
-  oopsie errors                     List error groups
-  oopsie errors --status unresolved Filter by status (unresolved/resolved/ignored)
-  oopsie errors --limit 10          Limit results
-  oopsie show <id>                  Show error group details + recent occurrences
+  oopsie errors [--status unresolved|resolved|ignored] [--limit N] [--offset N]
+  oopsie show <id>                             Full details + recent occurrences
+  oopsie resolve <id>                          Mark resolved
+  oopsie ignore <id>                           Archive
+  oopsie reopen <id>                           Reopen
 
-Actions:
-  oopsie resolve <id>               Mark as resolved
-  oopsie ignore <id>                Archive (ignore) an error group
-  oopsie reopen <id>                Reopen a resolved/ignored error group
+Global flags:
+  -p, --project <name|id>                      Scope to a specific remote project
+  -c, --connection <name>                      Use a non-default connection
+  -h, --help                                   Show this help
+  -v, --version                                Show version
 
-Options:
-  --project <name>                  Use a specific project (overrides default)
-  --help, -h                        Show this help
-  --version, -v                     Show version
+Auth modes:
+  Project key — scoped to one project. No --project needed.
+  User key    — cross-project. Pass --project or pin one with 'config set-project'.
 
-Config is stored in ${CONFIG_DIR}/config.json
-Override with OOPSIE_CONFIG_DIR env var.
+Config: ${CONFIG_DIR}/config.json  (override with \$OOPSIE_CONFIG_DIR)
 EOF
 }
 
 # ── Main ────────────────────────────────────────────────────────────────
 
-# Extract --project flag before dispatching
-PROJECT_FLAG=""
+CONNECTION_FLAG=""
+PROJECT_ARG=""
 args=()
+
+# `config add` owns its own --project flag (pins a project on the new connection).
+# For every other command, --project/-p at any position sets the scope for this call.
+is_config_add=0
+if [ "${1:-}" = "config" ] && [ "${2:-}" = "add" ]; then
+  is_config_add=1
+fi
+
 while [ $# -gt 0 ]; do
   case "$1" in
-    --project) PROJECT_FLAG="$2"; shift 2 ;;
-    *)         args+=("$1"); shift ;;
+    -c|--connection) CONNECTION_FLAG="$2"; shift 2 ;;
+    -p|--project)
+      if [ "$is_config_add" = "1" ]; then
+        args+=("$1"); shift
+      else
+        PROJECT_ARG="$2"; shift 2
+      fi
+      ;;
+    *) args+=("$1"); shift ;;
   esac
 done
 set -- "${args[@]+"${args[@]}"}"
@@ -415,14 +626,16 @@ set -- "${args[@]+"${args[@]}"}"
 command="${1:-help}"; shift 2>/dev/null || true
 
 case "$command" in
-  config)                cmd_config "$@" ;;
-  project)               cmd_project ;;
-  errors)                cmd_errors "$@" ;;
-  show)                  cmd_show "$@" ;;
-  resolve)               cmd_resolve "$@" ;;
-  ignore)                cmd_ignore "$@" ;;
-  reopen)                cmd_reopen "$@" ;;
-  help|--help|-h)        cmd_help ;;
-  version|--version|-v)  echo "oopsie ${VERSION}" ;;
-  *)                     die "Unknown command: $command. Run 'oopsie help' for usage." ;;
+  config)               cmd_config "$@" ;;
+  whoami)               cmd_whoami ;;
+  projects)             cmd_projects ;;
+  project)              cmd_project ;;
+  errors)               cmd_errors "$@" ;;
+  show)                 cmd_show "$@" ;;
+  resolve)              cmd_resolve "$@" ;;
+  ignore)               cmd_ignore "$@" ;;
+  reopen)               cmd_reopen "$@" ;;
+  help|--help|-h)       cmd_help ;;
+  version|--version|-v) echo "oopsie ${VERSION}" ;;
+  *)                    die "Unknown command: $command. Run 'oopsie help' for usage." ;;
 esac
