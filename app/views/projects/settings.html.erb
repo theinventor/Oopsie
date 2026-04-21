@@ -17,6 +17,12 @@
     <strong>Authorization header:</strong>
     <code>Bearer <%= @project.api_key %></code>
   </p>
+  <div style="margin-top: 1rem;">
+    <%= button_to "Regenerate Key", rotate_key_project_path(@project),
+        method: :patch, class: "btn btn-danger btn-sm",
+        form_class: "inline-form",
+        data: { turbo_confirm: "Regenerate this project's key? The old key will stop working immediately." } %>
+  </div>
 </div>
 
 <h2 class="section-title">Notification Rules</h2>

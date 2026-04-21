@@ -1,10 +1,13 @@
 Rails.application.routes.draw do
   resource :session
-  resource :account, only: [ :show ]
+  resource :account, only: [ :show ] do
+    patch :rotate_key
+  end
   resources :passwords, param: :token
   resources :projects do
     member do
       get :settings
+      patch :rotate_key
     end
     resources :error_groups, only: [ :show ] do
       member do
