@@ -5,8 +5,11 @@ module Api
         if @project
           render json: serialize_project(@project)
         elsif @user
+          unresolved_count_sql = ActiveRecord::Base.sanitize_sql_array(
+            [ "COUNT(CASE WHEN error_groups.status = ? THEN 1 END) AS unresolved_count_cache", ErrorGroup.statuses[:unresolved] ]
+          )
           projects = Project.left_joins(:error_groups)
-            .select("projects.*, COUNT(error_groups.id) AS error_groups_count_cache, COUNT(CASE WHEN error_groups.status = #{ErrorGroup.statuses[:unresolved]} THEN 1 END) AS unresolved_count_cache")
+            .select("projects.*, COUNT(error_groups.id) AS error_groups_count_cache, #{unresolved_count_sql}")
             .group("projects.id")
             .order(:name)
           render json: { projects: projects.map { |p| serialize_project_from_query(p) } }
