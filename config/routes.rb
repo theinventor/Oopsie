@@ -1,5 +1,6 @@
 Rails.application.routes.draw do
   resource :session
+  resource :account, only: [ :show ]
   resources :passwords, param: :token
   resources :projects do
     member do

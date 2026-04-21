@@ -18,9 +18,10 @@ sudo mv oopsie /usr/local/bin/  # optional: add to PATH</code></pre>
 
 <div class="cli-section card">
   <h2>Setup</h2>
-  <p>Add your Oopsie server and project API key:</p>
-  <pre><code>oopsie config add myproject --server https://your-oopsie-instance.com --key YOUR_API_KEY</code></pre>
-  <p class="text-secondary">Find your API key on the project page after signing in.</p>
+  <p>Add your Oopsie server using your <strong>User API Key</strong> (found on the Account page) for access to all projects:</p>
+  <pre><code>oopsie config add myserver --server https://your-oopsie-instance.com --key YOUR_USER_API_KEY</code></pre>
+  <p class="text-secondary">Or use a <strong>Project Key</strong> (found on the project settings page) for single-project access:</p>
+  <pre><code>oopsie config add myproject --server https://your-oopsie-instance.com --key YOUR_PROJECT_KEY</code></pre>
 </div>
 
 <div class="cli-section card">
@@ -72,5 +73,5 @@ oopsie errors --project staging # or override per-command</code></pre>
       <tr><td><code>PATCH</code></td><td><code>/api/v1/error_groups/:id/unresolve</code></td><td>Reopen</td></tr>
     </tbody>
   </table>
-  <p class="text-secondary">All endpoints require <code>Authorization: Bearer YOUR_API_KEY</code> header.</p>
+  <p class="text-secondary">All endpoints require <code>Authorization: Bearer YOUR_KEY</code> header (User API Key or Project Key). When using a User API Key with project-scoped endpoints, pass <code>project_id</code> as a query param or <code>X-Project-Id</code> header.</p>
 </div>

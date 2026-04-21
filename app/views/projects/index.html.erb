@@ -13,7 +13,7 @@
         <div class="project-info">
           <h2><%= link_to project.name, project_path(project) %></h2>
           <div class="project-meta">
-            API key: <code><%= project.api_key.first(8) %>...</code>
+            Project key: <code><%= project.api_key.first(8) %>...</code>
           </div>
         </div>
         <% count = project.respond_to?(:unresolved_count) ? project.unresolved_count : 0 %>
