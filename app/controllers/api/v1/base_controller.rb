@@ -1,12 +1,12 @@
 module Api
   module V1
     class BaseController < ActionController::API
-      before_action :authenticate_project!
+      before_action :authenticate!
       before_action :check_rate_limit!
 
       private
 
-      def authenticate_project!
+      def authenticate!
         token = request.headers["Authorization"]&.delete_prefix("Bearer ")
 
         unless token.present?
@@ -15,14 +15,38 @@ module Api
         end
 
         @project = Project.find_by(api_key: token)
+        return if @project
 
-        render json: { error: "Invalid API key" }, status: :unauthorized unless @project
+        @user = User.find_by(api_key: token)
+        return if @user
+
+        render json: { error: "Invalid API key" }, status: :unauthorized
+      end
+
+      def current_project
+        @project
+      end
+
+      def current_user
+        @user
+      end
+
+      def require_project!
+        return if @project
+
+        if @user
+          project_id = params[:project_id] || request.headers["X-Project-Id"]
+          @project = Project.find_by(id: project_id) if project_id
+        end
+
+        unless @project
+          render json: { error: "Project context required. Pass project_id param or X-Project-Id header." }, status: :bad_request
+        end
       end
 
       def check_rate_limit!
-        return unless @project
-
-        cache_key = "rate_limit:#{@project.id}:#{Time.current.to_i / 60}"
+        rate_key = @project ? "project:#{@project.id}" : "user:#{@user.id}"
+        cache_key = "rate_limit:#{rate_key}:#{Time.current.to_i / 60}"
         count = Rails.cache.increment(cache_key, 1, expires_in: 2.minutes) || 1
 
         if count > 100

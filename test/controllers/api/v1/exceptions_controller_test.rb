@@ -83,7 +83,7 @@ class Api::V1::ExceptionsControllerTest < ActionDispatch::IntegrationTest
     original_cache = Rails.cache
     Rails.cache = ActiveSupport::Cache::MemoryStore.new
 
-    cache_key = "rate_limit:#{@project.id}:#{Time.current.to_i / 60}"
+    cache_key = "rate_limit:project:#{@project.id}:#{Time.current.to_i / 60}"
     Rails.cache.write(cache_key, 100, expires_in: 2.minutes)
 
     post api_v1_exceptions_url, params: @valid_payload.to_json, headers: @headers

@@ -1,6 +1,7 @@
 module Api
   module V1
     class ErrorGroupsController < BaseController
+      before_action :require_project!
       before_action :set_error_group, only: [ :show, :resolve, :ignore, :unresolve ]
 
       def index
