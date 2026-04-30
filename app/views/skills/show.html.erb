@@ -1,0 +1,63 @@
+<% content_for(:title) { "Oopsie Agent Skills" } %>
+
+<div class="page-header">
+  <h1>Agent Skills</h1>
+  <a href="https://github.com/theinventor/Oopsie/tree/main/skills" class="btn btn-secondary">View on GitHub</a>
+</div>
+
+<div class="cli-intro card">
+  <p>Two ready-made agent skills that drive the <%= link_to "oopsie CLI", cli_path %> for you. Works with <strong>Claude Code</strong>, <strong>Codex</strong>, <strong>Hermes</strong>, <strong>OpenClaw</strong>, and any other AI coding agent that reads skills from <code>~/.claude/skills/</code> — or just point your agent at the markdown files directly.</p>
+</div>
+
+<div class="cli-section card">
+  <h2>Install both</h2>
+  <p>One copy-paste — installs <code>oopsie</code> and <code>oopsies-triage-and-fix</code> for any agent that reads <code>~/.claude/skills/</code>:</p>
+  <pre><code>mkdir -p ~/.claude/skills/oopsie ~/.claude/skills/oopsies-triage-and-fix
+curl -fsSL https://raw.githubusercontent.com/theinventor/Oopsie/main/skills/oopsie/SKILL.md \
+  -o ~/.claude/skills/oopsie/SKILL.md
+curl -fsSL https://raw.githubusercontent.com/theinventor/Oopsie/main/skills/oopsies-triage-and-fix/SKILL.md \
+  -o ~/.claude/skills/oopsies-triage-and-fix/SKILL.md</code></pre>
+  <p class="text-secondary">Skills require the <%= link_to "oopsie CLI", cli_path %> to be installed and at least one connection configured (<code>oopsie config add ...</code>).</p>
+</div>
+
+<div class="features">
+  <div class="card feature-card">
+    <h3>/oopsie</h3>
+    <p>The everyday driver. Ask Claude to "check oopsie", "show what's broken", or "show me error #42" and this skill runs the right CLI command, reads the stack trace, jumps to the offending file, and helps you fix it.</p>
+    <pre><code>$ claude
+&gt; check oopsie
+
+[runs oopsie whoami, oopsie errors --status unresolved]
+3 unresolved errors in myapp:
+  #47  NoMethodError — 1.2k occurrences, 2m ago
+  #45  ActiveRecord::RecordNotFound — 89 occurrences
+  #42  ArgumentError — 12 occurrences</code></pre>
+    <p style="margin-top: 0.75rem;"><a href="https://raw.githubusercontent.com/theinventor/Oopsie/main/skills/oopsie/SKILL.md">View source →</a></p>
+  </div>
+
+  <div class="card feature-card">
+    <h3>/oopsies-triage-and-fix</h3>
+    <p>The end-to-end button. Matches the current repo to an Oopsie project, picks the most urgent error (or asks if it's a coin flip), marks it resolved so nobody else duplicates the work, fixes it, then runs <code>/review</code>, <code>/qa</code>, <code>/ship</code>, and <code>/land</code> without stopping.</p>
+    <pre><code>$ claude
+&gt; triage oopsies
+
+[matches repo to project, picks #47]
+Marking #47 resolved and starting the fix...
+[fix → review → qa → ship → land]</code></pre>
+    <p style="margin-top: 0.75rem;"><a href="https://raw.githubusercontent.com/theinventor/Oopsie/main/skills/oopsies-triage-and-fix/SKILL.md">View source →</a></p>
+  </div>
+</div>
+
+<div class="cli-section card">
+  <h2>How to use</h2>
+  <p>Most agents pick up skills from <code>~/.claude/skills/</code> on launch. After installing, just talk to your agent normally:</p>
+  <ul>
+    <li><code>check oopsie</code> — runs the <strong>oopsie</strong> skill</li>
+    <li><code>what's broken in prod?</code> — runs the <strong>oopsie</strong> skill</li>
+    <li><code>show me error 42</code> — runs the <strong>oopsie</strong> skill</li>
+    <li><code>triage oopsies</code> — runs the <strong>oopsies-triage-and-fix</strong> skill end-to-end</li>
+    <li><code>fix the exceptions</code> — runs the <strong>oopsies-triage-and-fix</strong> skill</li>
+  </ul>
+  <p class="text-secondary">If your agent uses a different skills directory, adjust the install paths to match. The skills are plain markdown — any agent that can follow instructions can use them.</p>
+  <p class="text-secondary">No CLI? <%= link_to "Grab it here", cli_path %> first — the skills are thin wrappers around it.</p>
+</div>
