@@ -2,6 +2,14 @@
 
 All notable changes to Oopsie will be documented in this file.
 
+## [0.1.3.1] - 2026-04-29
+
+### Added
+- Agent skills page at `/skills` with one-paste install for `oopsie` and `oopsies-triage-and-fix`. Works with Claude Code, Codex, Hermes, OpenClaw, and any agent that reads `~/.claude/skills/`.
+- Skill source files live in the repo under `skills/<name>/SKILL.md` and are served via raw.githubusercontent.com, matching the CLI install pattern.
+- Homepage hero now links to the skills page; new "Agent skills" feature card surfaces them alongside the CLI. CLI page cross-links to skills.
+- "Skills" added to the top nav.
+
 ## [0.1.3.0] - 2026-04-20
 
 ### Changed

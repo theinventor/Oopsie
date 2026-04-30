@@ -6,6 +6,7 @@
   <div class="hero-actions">
     <%= link_to "Sign in", new_session_path, class: "btn btn-primary" %>
     <%= link_to "Get the CLI", cli_path, class: "btn btn-secondary" %>
+    <%= link_to "Agent Skills", skills_path, class: "btn btn-secondary" %>
   </div>
 </div>
 
@@ -41,6 +42,16 @@ Resolved error group #12.</code></pre>
   <div class="card feature-card">
     <h3>Get notified</h3>
     <p>Email or webhook notifications for new errors and regressions. Never hear about the same known issue twice.</p>
+  </div>
+
+  <div class="card feature-card">
+    <h3>Agent skills</h3>
+    <p>Two ready-made skills for AI coding agents — Claude Code, Codex, Hermes, OpenClaw, and friends. Ask your agent "what's broken?" or "triage oopsies" and it investigates, fixes, and ships.</p>
+    <pre><code>mkdir -p ~/.claude/skills/oopsie
+curl -fsSL https://raw.githubusercontent.com/\
+theinventor/Oopsie/main/skills/oopsie/SKILL.md \
+  -o ~/.claude/skills/oopsie/SKILL.md</code></pre>
+    <p style="margin-top: 0.75rem;"><%= link_to "Install both skills →", skills_path %></p>
   </div>
 </div>
 
