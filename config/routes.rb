@@ -20,6 +20,9 @@ Rails.application.routes.draw do
       member do
         patch :toggle
       end
+      collection do
+        match :test_send, via: [ :post, :patch ]
+      end
     end
   end
 

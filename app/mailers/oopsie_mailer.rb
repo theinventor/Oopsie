@@ -14,4 +14,9 @@ class OopsieMailer < ApplicationMailer
 
     mail(to: notification_rule.destination, subject: subject)
   end
+
+  def test_notification(destination:, project:)
+    @project = project
+    mail(to: destination, subject: "[#{@project.name}] Oopsie test notification")
+  end
 end
