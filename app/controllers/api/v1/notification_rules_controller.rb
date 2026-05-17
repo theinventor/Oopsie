@@ -40,7 +40,6 @@ module Api
         {
           id: rule.id,
           channel: rule.channel,
-          destination: rule.destination,
           destination_masked: masked_destination(rule),
           events: rule.events,
           enabled: rule.enabled,

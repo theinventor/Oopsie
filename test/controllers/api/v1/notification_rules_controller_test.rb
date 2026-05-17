@@ -23,6 +23,7 @@ class Api::V1::NotificationRulesControllerTest < ActionDispatch::IntegrationTest
 
     rule = json["notification_rules"].first
     assert_equal "email", rule["channel"]
+    assert_not rule.key?("destination")
     assert_equal "a***@example.com", rule["destination_masked"]
     assert_equal %w[new_error regression], rule["events"]
     assert rule["enabled"]
@@ -45,6 +46,7 @@ class Api::V1::NotificationRulesControllerTest < ActionDispatch::IntegrationTest
     json = JSON.parse(response.body)
     rule = json["notification_rule"]
     assert_equal "webhook", rule["channel"]
+    assert_not rule.key?("destination")
     assert_equal "https://hooks.example.com/...", rule["destination_masked"]
     assert_equal [ "new_error" ], rule["events"]
     assert_equal [ "new_error" ], NotificationRule.last.events
