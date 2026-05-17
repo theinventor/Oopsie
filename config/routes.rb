@@ -30,6 +30,7 @@ Rails.application.routes.draw do
     namespace :v1 do
       resources :exceptions, only: [ :create ]
       resource :project, only: [ :show ]
+      resources :notification_rules, only: [ :index, :create ]
       resources :error_groups, only: [ :index, :show ] do
         member do
           patch :resolve
