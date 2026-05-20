@@ -92,6 +92,15 @@ class OopsieMailerTest < ActionMailer::TestCase
     assert email.text_part.present?
   end
 
+  test "sends test notification" do
+    email = OopsieMailer.test_notification(destination: "qa@example.com", project: @project)
+
+    assert_equal [ "qa@example.com" ], email.to
+    assert_match "test notification", email.subject
+    assert_match @project.name, email.subject
+    assert_match @project.name, email.body.encoded
+  end
+
   test "handles occurrence with no backtrace" do
     @occurrence.update!(backtrace: nil)
 

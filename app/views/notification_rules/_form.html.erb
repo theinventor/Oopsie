@@ -18,6 +18,14 @@
 
   <div style="display: flex; gap: 0.5rem;">
     <%= f.submit class: "btn btn-primary" %>
+    <button type="submit"
+        formaction="<%= test_send_project_notification_rules_path(project) %>"
+        formmethod="post"
+        formnovalidate
+        class="btn btn-secondary"
+        data-turbo="false">
+      Send Test
+    </button>
     <%= link_to "Cancel", settings_project_path(project), class: "btn btn-secondary" %>
   </div>
 <% end %>

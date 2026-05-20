@@ -81,4 +81,50 @@ class NotificationRulesControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to settings_project_path(@project)
     assert @rule.reload.enabled?
   end
+
+  test "test_send delivers an email to the destination" do
+    assert_emails 1 do
+      post test_send_project_notification_rules_url(@project), params: {
+        notification_rule: { channel: "email", destination: "qa@example.com" }
+      }
+    end
+    assert_redirected_to settings_project_path(@project)
+    assert_match "qa@example.com", flash[:notice]
+    assert_equal [ "qa@example.com" ], ActionMailer::Base.deliveries.last.to
+  end
+
+  test "test_send rejects blank destination" do
+    assert_emails 0 do
+      post test_send_project_notification_rules_url(@project), params: {
+        notification_rule: { channel: "email", destination: "" }
+      }
+    end
+    assert_redirected_to settings_project_path(@project)
+    assert_match(/destination/i, flash[:alert])
+  end
+
+  test "test_send accepts PATCH for edit-form submission" do
+    assert_emails 1 do
+      patch test_send_project_notification_rules_url(@project), params: {
+        notification_rule: { channel: "email", destination: "patch@example.com" }
+      }
+    end
+    assert_redirected_to settings_project_path(@project)
+  end
+
+  test "test_send rejects invalid webhook URL" do
+    assert_emails 0 do
+      post test_send_project_notification_rules_url(@project), params: {
+        notification_rule: { channel: "webhook", destination: "not-a-url" }
+      }
+    end
+    assert_redirected_to settings_project_path(@project)
+    assert flash[:alert].present?
+  end
+
+  test "form renders Send Test button" do
+    get edit_project_notification_rule_url(@project, @rule)
+    assert_response :success
+    assert_select "button[formaction*='test_send']", text: /Send Test/
+  end
 end
