@@ -88,6 +88,11 @@ oopsie projects                   # list everything I can access
 oopsie errors --status unresolved # what's broken?
 oopsie show 42                    # full details + stack traces
 oopsie resolve 42                 # mark fixed
+
+# Notification rules
+oopsie notifications --project myapp
+printf '%s' "$OOPSIE_WEBHOOK_URL" | \
+  oopsie notification create --project myapp --kind webhook --url-stdin --events error.created,error.reopened
 ```
 
 Override the scope for any command with `-p/--project <name>` or the connection with `-c/--connection <name>`. Full help: `oopsie help`.
@@ -172,6 +177,8 @@ Authenticated with a Bearer token. Project-scoped endpoints need a project conte
 | Method | Path | Description |
 |--------|------|-------------|
 | `GET`    | `/api/v1/project` | Project summary — single project with a project key, `{projects: [...]}` with a user key |
+| `GET`    | `/api/v1/notification_rules` | List notification destinations for the scoped project |
+| `POST`   | `/api/v1/notification_rules` | Create a notification rule (`channel`, `destination`, optional `events`) |
 | `GET`    | `/api/v1/error_groups` | List error groups (`?status=`, `?limit=`, `?offset=`) |
 | `GET`    | `/api/v1/error_groups/:id` | Group details + recent occurrences |
 | `PATCH`  | `/api/v1/error_groups/:id/resolve` | Mark resolved |
@@ -253,6 +260,24 @@ Channels:
 - **Webhook** — POST JSON payload to any URL (Slack incoming webhooks, etc.)
 
 Configure notification rules per project in Settings.
+
+Notification rules can also be managed through the API/CLI. Webhook URLs often
+contain embedded secrets, so prefer `--url-stdin` or `--url-file` instead of
+putting the URL directly in shell history:
+
+```bash
+oopsie notifications --project myapp
+
+printf '%s' "$OOPSIE_WEBHOOK_URL" | \
+  oopsie notification create \
+    --project myapp \
+    --kind webhook \
+    --url-stdin \
+    --events error.created,error.reopened
+```
+
+Canonical notification events are `new_error` and `regression`. The CLI accepts
+the aliases `error.created`, `error.reopened`, and `error.regressed`.
 
 ## Retention
 
