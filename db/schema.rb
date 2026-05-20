@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_04_21_001538) do
+ActiveRecord::Schema[8.1].define(version: 2026_05_17_052400) do
   create_table "error_groups", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.string "error_class", null: false
@@ -32,6 +32,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_21_001538) do
     t.datetime "created_at", null: false
     t.string "destination", null: false
     t.boolean "enabled", default: true, null: false
+    t.json "events"
     t.integer "project_id", null: false
     t.datetime "updated_at", null: false
     t.index ["project_id"], name: "index_notification_rules_on_project_id"

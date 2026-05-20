@@ -2,7 +2,7 @@
 # oopsie — command-line client for the Oopsie exception tracker
 set -euo pipefail
 
-VERSION="0.2.0"
+VERSION="0.3.0"
 CONFIG_DIR="${OOPSIE_CONFIG_DIR:-$HOME/.oopsie}"
 CONFIG_FILE="$CONFIG_DIR/config.json"
 
@@ -89,6 +89,14 @@ api() {
     args+=(-H "X-Project-Id: ${SCOPED_PROJECT_ID}")
   fi
 
+  local has_body="${API_REQUEST_BODY_SET:-0}"
+  local request_body="${API_REQUEST_BODY:-}"
+  API_REQUEST_BODY_SET=0
+  API_REQUEST_BODY=""
+  if [ "$has_body" = "1" ]; then
+    args+=(-d "$request_body")
+  fi
+
   local body http_code err
   body=$(curl "${args[@]}" "$url" 2>/dev/null) || die "Cannot connect to ${CONNECTION_SERVER}. Is the server running?"
 
@@ -110,6 +118,14 @@ api() {
     429) die "Rate limit exceeded. Try again in a minute." ;;
     *)   die "Server returned HTTP $http_code: $body" ;;
   esac
+}
+
+api_json() {
+  local method="$1" path="$2" body="$3"
+  shift 3
+  API_REQUEST_BODY="$body"
+  API_REQUEST_BODY_SET=1
+  api "$method" "$path" "$@"
 }
 
 # Fetch accessible projects as TSV (id, name, unresolved, total, created).
@@ -193,6 +209,39 @@ status_badge() {
     ignored)    echo "[IGNORED]" ;;
     *)          echo "[$(echo "$1" | tr '[:lower:]' '[:upper:]')]" ;;
   esac
+}
+
+canonical_event_cli() {
+  case "$1" in
+    new_error|error.created) echo "new_error" ;;
+    regression|error.reopened|error.regressed) echo "regression" ;;
+    *) return 1 ;;
+  esac
+}
+
+events_json_or_die() {
+  local raw="${1:-new_error,regression}"
+  local -a parts events=()
+  local part event seen=","
+  IFS=',' read -r -a parts <<< "$raw"
+  for part in "${parts[@]}"; do
+    part="${part#"${part%%[![:space:]]*}"}"
+    part="${part%"${part##*[![:space:]]}"}"
+    [ -z "$part" ] && continue
+    event=$(canonical_event_cli "$part") || die "Invalid event '$part'. Supported: new_error, regression, error.created, error.reopened."
+    if [[ "$seen" != *",$event,"* ]]; then
+      events+=("$event")
+      seen="${seen}${event},"
+    fi
+  done
+
+  [ "${#events[@]}" -eq 0 ] && die "Missing --events value."
+  printf '%s\n' "${events[@]}" | jq -R . | jq -s .
+}
+
+validate_webhook_url() {
+  local url="$1"
+  [[ "$url" =~ ^https?://[^[:space:]]+$ ]] || die "Missing or invalid URL. Use an HTTP or HTTPS URL."
 }
 
 # ── Config commands ─────────────────────────────────────────────────────
@@ -554,6 +603,129 @@ cmd_reopen() {
   echo "Reopened error group #${id}."
 }
 
+# ── Notification commands ───────────────────────────────────────────────
+
+cmd_notifications() {
+  [ "${1:-}" = "list" ] && shift
+  local kind=""
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --kind|--channel) kind="$2"; shift 2 ;;
+      -*)               die "Unknown flag: $1. Run 'oopsie help'." ;;
+      *)                die "Unexpected argument: $1. Run 'oopsie help'." ;;
+    esac
+  done
+
+  if [ -n "$kind" ] && [ "$kind" != "email" ] && [ "$kind" != "webhook" ]; then
+    die "Invalid kind '$kind'. Use 'email' or 'webhook'."
+  fi
+
+  resolve_connection
+  scope_project
+  local data rules count label
+  data=$(api GET /api/v1/notification_rules)
+  rules=$(echo "$data" | jq -c --arg kind "$kind" '.notification_rules[] | select($kind == "" or .channel == $kind)')
+  count=$(printf '%s\n' "$rules" | grep -c . || true)
+  if [ "$count" -eq 0 ]; then
+    echo "No notification rules found."
+    return
+  fi
+
+  label="NOTIFICATIONS"
+  [ -n "$kind" ] && label="$(echo "$kind" | tr '[:lower:]' '[:upper:]') NOTIFICATIONS"
+  echo "$label ($count)"
+  echo ""
+  printf "  %-5s  %-8s  %-8s  %-22s  %s\n" "ID" "CHANNEL" "ENABLED" "EVENTS" "DESTINATION"
+  while read -r rule; do
+    local id channel enabled events destination
+    id=$(echo "$rule" | jq -r '.id')
+    channel=$(echo "$rule" | jq -r '.channel')
+    enabled=$(echo "$rule" | jq -r '.enabled')
+    events=$(echo "$rule" | jq -r '.events | join(",")')
+    destination=$(echo "$rule" | jq -r '.destination_masked // "[masked]"')
+    printf "  %-5s  %-8s  %-8s  %-22s  %s\n" "$id" "$channel" "$enabled" "$events" "$destination"
+  done <<< "$rules"
+}
+
+cmd_notification_create() {
+  local kind="webhook" url="" events_arg="" url_sources=0 enabled=true
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --kind|--channel) kind="$2"; shift 2 ;;
+      --url|--destination) url="$2"; url_sources=$((url_sources + 1)); shift 2 ;;
+      --url-stdin) url=$(tr -d '\r\n'); url_sources=$((url_sources + 1)); shift ;;
+      --url-file)
+        [ -r "$2" ] || die "Cannot read URL file: $2"
+        url=$(tr -d '\r\n' < "$2")
+        url_sources=$((url_sources + 1))
+        shift 2
+        ;;
+      --events|--event) events_arg="$2"; shift 2 ;;
+      --enabled) enabled=true; shift ;;
+      --disabled) enabled=false; shift ;;
+      -*) die "Unknown flag: $1. Run 'oopsie help'." ;;
+      *)  die "Unexpected argument: $1. Run 'oopsie help'." ;;
+    esac
+  done
+
+  [ "$kind" = "webhook" ] || die "The CLI currently supports creating webhook notifications only."
+  [ "$url_sources" -eq 0 ] && die "Missing URL. Use --url, --url-stdin, or --url-file."
+  [ "$url_sources" -gt 1 ] && die "Use only one of --url, --url-stdin, or --url-file."
+  validate_webhook_url "$url"
+
+  local events_json body data rule
+  events_json=$(events_json_or_die "$events_arg")
+  body=$(jq -n \
+    --arg channel "$kind" \
+    --arg destination "$url" \
+    --argjson events "$events_json" \
+    --argjson enabled "$enabled" \
+    '{notification_rule: {channel: $channel, destination: $destination, events: $events, enabled: $enabled}}')
+
+  resolve_connection
+  scope_project
+  data=$(api_json POST /api/v1/notification_rules "$body")
+  rule=$(echo "$data" | jq '.notification_rule')
+
+  echo "Created notification rule #$(echo "$rule" | jq -r '.id')."
+  echo "  Channel:      $(echo "$rule" | jq -r '.channel')"
+  echo "  Events:       $(echo "$rule" | jq -r '.events | join(",")')"
+  echo "  Enabled:      $(echo "$rule" | jq -r '.enabled')"
+  echo "  Destination:  $(echo "$rule" | jq -r '.destination_masked // "[masked]"')"
+}
+
+cmd_notification() {
+  local sub="${1:-help}"
+  shift 2>/dev/null || true
+  case "$sub" in
+    create) cmd_notification_create "$@" ;;
+    list|ls) cmd_notifications "$@" ;;
+    *)
+      cat <<EOF
+Usage:
+  oopsie notifications [--kind webhook|email]
+  oopsie notification create --kind webhook --url <https-url> [--events new_error,regression]
+  printf '%s' "\$OOPSIE_WEBHOOK_URL" | oopsie notification create --kind webhook --url-stdin --events error.created,error.reopened
+EOF
+      ;;
+  esac
+}
+
+cmd_webhooks() {
+  [ "${1:-}" = "list" ] && shift
+  cmd_notifications --kind webhook "$@"
+}
+
+cmd_webhook() {
+  local sub="${1:-list}"
+  shift 2>/dev/null || true
+  case "$sub" in
+    create) cmd_notification_create --kind webhook "$@" ;;
+    list|ls) cmd_webhooks "$@" ;;
+    *) die "Unknown webhook command: $sub. Run 'oopsie help' for usage." ;;
+  esac
+}
+
 # ── Help ────────────────────────────────────────────────────────────────
 
 cmd_help() {
@@ -580,6 +752,13 @@ Errors:
   oopsie resolve <id>                          Mark resolved
   oopsie ignore <id>                           Archive
   oopsie reopen <id>                           Reopen
+
+Notifications:
+  oopsie notifications                          List notification rules
+  oopsie notifications --kind webhook           List webhook notification rules
+  oopsie notification create --kind webhook --url <https-url> [--events new_error,regression]
+  oopsie webhook create --url <https-url> [--events error.created,error.reopened]
+  printf '%s' "\$OOPSIE_WEBHOOK_URL" | oopsie notification create --kind webhook --url-stdin
 
 Global flags:
   -p, --project <name|id>                      Scope to a specific remote project
@@ -635,6 +814,10 @@ case "$command" in
   resolve)              cmd_resolve "$@" ;;
   ignore)               cmd_ignore "$@" ;;
   reopen)               cmd_reopen "$@" ;;
+  notifications)        cmd_notifications "$@" ;;
+  notification)         cmd_notification "$@" ;;
+  webhooks)             cmd_webhooks "$@" ;;
+  webhook)              cmd_webhook "$@" ;;
   help|--help|-h)       cmd_help ;;
   version|--version|-v) echo "oopsie ${VERSION}" ;;
   *)                    die "Unknown command: $command. Run 'oopsie help' for usage." ;;
