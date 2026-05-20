@@ -61,7 +61,7 @@ oopsie projects      # list every project this key can access
 
 ## Scoping Commands to a Project
 
-Commands that operate on error groups (`project`, `errors`, `show`, `resolve`, `ignore`, `reopen`) need a project scope. In order of precedence:
+Commands that operate on project resources (`project`, `errors`, `show`, `resolve`, `ignore`, `reopen`, `notifications`, `notification create`) need a project scope. In order of precedence:
 
 1. `--project <name-or-id>` flag on the command
 2. A project pinned on the connection via `oopsie config set-project <name>`
@@ -96,6 +96,21 @@ oopsie resolve <error_group_id> [--project <name>]
 oopsie ignore <error_group_id> [--project <name>]
 oopsie reopen <error_group_id> [--project <name>]
 ```
+
+### Notifications
+```bash
+oopsie notifications [--project <name>]                    # list configured destinations
+oopsie notifications --kind webhook [--project <name>]      # list only webhooks
+
+# Prefer stdin/file for webhook URLs that contain secrets, so they are not stored in shell history.
+printf '%s' "$OOPSIE_WEBHOOK_URL" | \
+  oopsie notification create --project <name> --kind webhook --url-stdin --events error.created,error.reopened
+
+oopsie notification create --project <name> --kind webhook --url-file /path/to/webhook-url --events new_error,regression
+```
+
+Canonical events are `new_error` and `regression`. The CLI also accepts aliases
+`error.created`, `error.reopened`, and `error.regressed`.
 
 ### Global flags
 - `-p, --project <name|id>` — scope to a specific project (one-off override)

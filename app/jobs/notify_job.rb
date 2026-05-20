@@ -9,9 +9,12 @@ class NotifyJob < ApplicationJob
     return unless occurrence
 
     project = error_group.project
+    event = is_regression ? "regression" : "new_error"
     rules = project.notification_rules.where(enabled: true)
 
     rules.find_each do |rule|
+      next unless rule.notify_for_event?(event)
+
       case rule.channel
       when "email"
         OopsieMailer.error_notification(

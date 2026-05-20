@@ -95,4 +95,28 @@ class NotifyJobTest < ActiveJob::TestCase
     mail_job = queue_adapter.enqueued_jobs.find { |j| j["job_class"] == "ActionMailer::MailDeliveryJob" }
     assert mail_job.present?
   end
+
+  test "skips rules not subscribed to the event" do
+    @rule.update!(events: [ "regression" ])
+
+    assert_no_enqueued_jobs do
+      NotifyJob.perform_now(
+        error_group_id: @error_group.id,
+        occurrence_id: @occurrence.id,
+        is_regression: false
+      )
+    end
+  end
+
+  test "delivers rules subscribed to regression" do
+    @rule.update!(events: [ "regression" ])
+
+    assert_enqueued_with(job: ActionMailer::MailDeliveryJob) do
+      NotifyJob.perform_now(
+        error_group_id: @error_group.id,
+        occurrence_id: @occurrence.id,
+        is_regression: true
+      )
+    end
+  end
 end
