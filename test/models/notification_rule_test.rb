@@ -20,6 +20,40 @@ class NotificationRuleTest < ActiveSupport::TestCase
     assert rule.valid?
   end
 
+  test "defaults to all supported events" do
+    rule = NotificationRule.create!(
+      project: projects(:myapp),
+      channel: :webhook,
+      destination: "https://hooks.example.com/notify"
+    )
+
+    assert_equal %w[new_error regression], rule.events
+  end
+
+  test "normalizes event aliases" do
+    rule = NotificationRule.new(
+      project: projects(:myapp),
+      channel: :webhook,
+      destination: "https://hooks.example.com/notify",
+      events: [ "error.created", "error.regressed" ]
+    )
+
+    assert rule.valid?
+    assert_equal %w[new_error regression], rule.events
+  end
+
+  test "rejects unsupported events" do
+    rule = NotificationRule.new(
+      project: projects(:myapp),
+      channel: :webhook,
+      destination: "https://hooks.example.com/notify",
+      events: [ "error.deleted" ]
+    )
+
+    assert_not rule.valid?
+    assert_match(/unsupported event/, rule.errors[:events].join)
+  end
+
   test "requires channel and destination" do
     rule = NotificationRule.new(project: projects(:myapp))
     assert_not rule.valid?
