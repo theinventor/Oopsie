@@ -20,6 +20,29 @@ allowed-tools:
 You have access to the `oopsie` CLI tool which connects to the user's self-hosted
 Oopsie exception tracking server. Use it to fetch, inspect, and manage exceptions.
 
+## CLI Version Guard
+
+Before using workflow-state or note commands, verify the installed CLI is new
+enough:
+
+```bash
+command -v oopsie
+oopsie version
+```
+
+Workflow state and notes require `oopsie 0.4.0` or newer. If an authenticated
+local CLI is older, update only the CLI script from the shipped source and do not
+read, print, or rewrite `~/.oopsie/config.json`:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/theinventor/Oopsie/main/cli/oopsie -o /tmp/oopsie
+chmod +x /tmp/oopsie
+install -m 755 /tmp/oopsie ~/.local/bin/oopsie
+hash -r
+oopsie version
+oopsie whoami
+```
+
 ## Concepts
 
 - A **connection** is a local config entry: a server URL + an API key (optionally pinned to a default project). Managed with `oopsie config`.
