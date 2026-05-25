@@ -15,6 +15,20 @@ You have access to a skill called Oopsie. It's a self-hosted exception handler l
 
 For this skill, "Oopsie Triage and Fix", you have the ability to handle looking at what exceptions have thrown, figuring out which is most urgent, figuring out which can be fixed on a single PR, and doing the fix and resolving everything. Here is how you'll do it:
 
+## 0. Verify the workflow-capable CLI
+
+Before listing or claiming exceptions, verify the active CLI is `oopsie 0.4.0`
+or newer:
+
+```bash
+oopsie version
+oopsie whoami
+```
+
+Do not proceed with workflow-state or note commands from an older authenticated
+CLI. Update the script from the shipped Oopsie source while preserving
+`~/.oopsie/config.json`, then re-run the checks above.
+
 ## 1. Locate the project
 
 Figure out what project you are in (e.g. `pwd`). Say you're in 'RcMap' — run `oopsie projects` and look for a matching project name on the server. If you find one, scope to it (`oopsie errors --project RcMap`) and list exceptions. If nothing matches, tell the user you can't match the current codebase to an Oopsie project and ask what they want to do. If there's no Oopsie connection at all yet, run the setup flow from the oopsie skill first.
