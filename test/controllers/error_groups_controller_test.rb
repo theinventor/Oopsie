@@ -13,6 +13,14 @@ class ErrorGroupsControllerTest < ActionDispatch::IntegrationTest
     assert_select "h1", /NoMethodError/
   end
 
+  test "shows workflow state controls" do
+    get project_error_group_url(@project, @error_group)
+    assert_response :success
+    assert_select ".badge", text: /untriaged/i
+    assert_select "form[action=?]", workflow_state_project_error_group_path(@project, @error_group)
+    assert_select "form[action=?]", project_error_group_notes_path(@project, @error_group)
+  end
+
   test "shows backtrace from latest occurrence" do
     get project_error_group_url(@project, @error_group)
     assert_response :success
@@ -32,22 +40,64 @@ class ErrorGroupsControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "resolves an error group" do
-    patch resolve_project_error_group_url(@project, @error_group)
+    assert_difference "ErrorGroupNote.status_change.count", 1 do
+      patch resolve_project_error_group_url(@project, @error_group)
+    end
     assert_redirected_to project_error_group_path(@project, @error_group)
     assert_equal "resolved", @error_group.reload.status
   end
 
   test "ignores an error group" do
-    patch ignore_project_error_group_url(@project, @error_group)
+    assert_difference "ErrorGroupNote.status_change.count", 1 do
+      patch ignore_project_error_group_url(@project, @error_group)
+    end
     assert_redirected_to project_error_group_path(@project, @error_group)
     assert_equal "ignored", @error_group.reload.status
   end
 
   test "unresolves a resolved error group" do
     @error_group.resolved!
-    patch unresolve_project_error_group_url(@project, @error_group)
+    assert_difference "ErrorGroupNote.status_change.count", 1 do
+      patch unresolve_project_error_group_url(@project, @error_group)
+    end
     assert_redirected_to project_error_group_path(@project, @error_group)
     assert_equal "unresolved", @error_group.reload.status
+  end
+
+  test "updates workflow state without resolving the group" do
+    assert_difference "ErrorGroupNote.workflow_state_change.count", 1 do
+      patch workflow_state_project_error_group_url(@project, @error_group),
+        params: { workflow_state: "looking", note: "Checking stack trace." }
+    end
+
+    assert_redirected_to project_error_group_path(@project, @error_group)
+    @error_group.reload
+    note = @error_group.error_group_notes.workflow_state_change.last
+
+    assert_equal "unresolved", @error_group.status
+    assert_equal "looking", @error_group.workflow_state
+    assert_equal "Checking stack trace.", note.body
+    assert_equal users(:one).email_address, note.actor_label
+  end
+
+  test "adds investigation note" do
+    assert_difference "ErrorGroupNote.note.count", 1 do
+      post project_error_group_notes_url(@project, @error_group),
+        params: { error_group_note: { body: "Looks tied to nil user." } }
+    end
+
+    assert_redirected_to project_error_group_path(@project, @error_group)
+    note = @error_group.error_group_notes.note.last
+    assert_equal "Looks tied to nil user.", note.body
+    assert_equal "web", note.source
+  end
+
+  test "shows recent activity" do
+    @error_group.add_note!("Visible activity", actor: users(:one), source: "test")
+
+    get project_error_group_url(@project, @error_group)
+    assert_response :success
+    assert_select ".activity-list", text: /Visible activity/
   end
 
   test "shows context and server info" do

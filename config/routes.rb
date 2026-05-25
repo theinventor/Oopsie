@@ -14,7 +14,9 @@ Rails.application.routes.draw do
         patch :resolve
         patch :ignore
         patch :unresolve
+        patch :workflow_state, action: :update_workflow_state
       end
+      resources :notes, controller: :error_group_notes, only: [ :create ]
     end
     resources :notification_rules, only: [ :create, :edit, :update, :destroy ] do
       member do
@@ -36,7 +38,9 @@ Rails.application.routes.draw do
           patch :resolve
           patch :ignore
           patch :unresolve
+          patch :workflow_state, action: :update_workflow_state
         end
+        resources :notes, controller: :error_group_notes, only: [ :create ]
       end
     end
   end

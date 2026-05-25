@@ -19,6 +19,7 @@
       <thead>
         <tr>
           <th>Status</th>
+          <th>Workflow</th>
           <th>Error</th>
           <th style="text-align: right;">Count</th>
           <th>Last Seen</th>
@@ -28,6 +29,7 @@
         <% @error_groups.each do |group| %>
           <tr>
             <td><span class="status-<%= group.status %>"><%= group.status %></span></td>
+            <td><span class="workflow-state workflow-state-<%= group.workflow_state %>"><%= workflow_state_label(group.workflow_state) %></span></td>
             <td>
               <div class="error-class"><%= link_to group.error_class, project_error_group_path(@project, group) %></div>
               <% if group.message.present? %>

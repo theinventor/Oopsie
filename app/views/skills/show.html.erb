@@ -37,12 +37,12 @@ curl -fsSL https://raw.githubusercontent.com/theinventor/Oopsie/main/skills/oops
 
   <div class="card feature-card">
     <h3>/oopsies-triage-and-fix</h3>
-    <p>The end-to-end button. Matches the current repo to an Oopsie project, picks the most urgent error (or asks if it's a coin flip), marks it resolved so nobody else duplicates the work, fixes it, then runs <code>/review</code>, <code>/qa</code>, <code>/ship</code>, and <code>/land</code> without stopping.</p>
+    <p>The end-to-end button. Matches the current repo to an Oopsie project, picks the most urgent error (or asks if it's a coin flip), claims it with workflow state so nobody else duplicates the work, leaves evidence notes, fixes it, then runs <code>/review</code>, <code>/qa</code>, <code>/ship</code>, and <code>/land</code> without stopping.</p>
     <pre><code>$ claude
 &gt; triage oopsies
 
 [matches repo to project, picks #47]
-Marking #47 resolved and starting the fix...
+Setting #47 in_progress and starting the fix...
 [fix → review → qa → ship → land]</code></pre>
     <p style="margin-top: 0.75rem;"><a href="https://raw.githubusercontent.com/theinventor/Oopsie/main/skills/oopsies-triage-and-fix/SKILL.md">View source →</a></p>
   </div>

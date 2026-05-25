@@ -2,7 +2,7 @@
 # oopsie — command-line client for the Oopsie exception tracker
 set -euo pipefail
 
-VERSION="0.3.0"
+VERSION="0.4.0"
 CONFIG_DIR="${OOPSIE_CONFIG_DIR:-$HOME/.oopsie}"
 CONFIG_FILE="$CONFIG_DIR/config.json"
 
@@ -82,6 +82,7 @@ api() {
     -H "Authorization: Bearer ${CONNECTION_KEY}"
     -H "Accept: application/json"
     -H "Content-Type: application/json"
+    -H "X-Oopsie-Client: cli/oopsie ${VERSION}"
     --connect-timeout 10
     --max-time 30
   )
@@ -209,6 +210,82 @@ status_badge() {
     ignored)    echo "[IGNORED]" ;;
     *)          echo "[$(echo "$1" | tr '[:lower:]' '[:upper:]')]" ;;
   esac
+}
+
+workflow_badge() {
+  case "$1" in
+    untriaged)        echo "[UNTRIAGED]" ;;
+    looking)          echo "[LOOKING]" ;;
+    in_progress)      echo "[IN PROGRESS]" ;;
+    blocked)          echo "[BLOCKED]" ;;
+    ready_to_resolve) echo "[READY TO RESOLVE]" ;;
+    *)                echo "[$(echo "$1" | tr '[:lower:]' '[:upper:]')]" ;;
+  esac
+}
+
+TEXT_VALUE=""
+TEXT_SOURCE_COUNT=0
+
+reset_text_source() {
+  TEXT_VALUE=""
+  TEXT_SOURCE_COUNT=0
+}
+
+set_text_source() {
+  local value="$1" flag="$2"
+  TEXT_SOURCE_COUNT=$((TEXT_SOURCE_COUNT + 1))
+  [ "$TEXT_SOURCE_COUNT" -gt 1 ] && die "Use only one text source flag."
+  TEXT_VALUE="$value"
+  if [ -z "$TEXT_VALUE" ]; then
+    die "$flag cannot be blank."
+  fi
+}
+
+set_text_source_from_file() {
+  local file="$1" flag="$2"
+  [ -r "$file" ] || die "Cannot read file for $flag: $file"
+  set_text_source "$(cat "$file")" "$flag"
+}
+
+set_text_source_from_stdin() {
+  local flag="$1"
+  set_text_source "$(cat)" "$flag"
+}
+
+parse_text_options() {
+  local label="$1"
+  shift
+  reset_text_source
+
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --${label})
+        [ $# -ge 2 ] || die "Missing value for --${label}."
+        set_text_source "$2" "--${label}"
+        shift 2
+        ;;
+      --${label}-stdin)
+        set_text_source_from_stdin "--${label}-stdin"
+        shift
+        ;;
+      --${label}-file)
+        [ $# -ge 2 ] || die "Missing file path for --${label}-file."
+        set_text_source_from_file "$2" "--${label}-file"
+        shift 2
+        ;;
+      -*) die "Unknown flag: $1. Run 'oopsie help'." ;;
+      *)  die "Unexpected argument: $1. Run 'oopsie help'." ;;
+    esac
+  done
+
+  return 0
+}
+
+require_text_source() {
+  local usage="$1"
+  if [ "$TEXT_SOURCE_COUNT" -eq 0 ]; then
+    die "$usage"
+  fi
 }
 
 canonical_event_cli() {
@@ -492,11 +569,12 @@ cmd_errors() {
   local params=()
   while [ $# -gt 0 ]; do
     case "$1" in
-      --status) params+=("status=$2"); shift 2 ;;
-      --limit)  params+=("limit=$2");  shift 2 ;;
-      --offset) params+=("offset=$2"); shift 2 ;;
-      -*)       die "Unknown flag: $1. Run 'oopsie help'." ;;
-      *)        die "Unexpected argument: $1. Run 'oopsie help'." ;;
+      --status)         params+=("status=$2");         shift 2 ;;
+      --workflow-state) params+=("workflow_state=$2"); shift 2 ;;
+      --limit)          params+=("limit=$2");          shift 2 ;;
+      --offset)         params+=("offset=$2");         shift 2 ;;
+      -*)               die "Unknown flag: $1. Run 'oopsie help'." ;;
+      *)                die "Unexpected argument: $1. Run 'oopsie help'." ;;
     esac
   done
 
@@ -516,15 +594,16 @@ cmd_errors() {
   echo "Error groups ($count of $total):"
   echo ""
   echo "$data" | jq -c '.error_groups[]' | while read -r group; do
-    local id status error_class message occ_count last_seen
+    local id status workflow_state error_class message occ_count last_seen
     id=$(echo "$group" | jq -r '.id')
     status=$(echo "$group" | jq -r '.status')
+    workflow_state=$(echo "$group" | jq -r '.workflow_state // "untriaged"')
     error_class=$(echo "$group" | jq -r '.error_class')
     message=$(echo "$group" | jq -r '.message // ""')
     occ_count=$(echo "$group" | jq -r '.occurrences_count')
     last_seen=$(echo "$group" | jq -r '.last_seen_at')
 
-    echo "  #${id}  $(status_badge "$status")  ${error_class}"
+    echo "  #${id}  $(status_badge "$status")  $(workflow_badge "$workflow_state")  ${error_class}"
     echo "       $(shorten "$message" 80)"
     echo "       ${occ_count} occurrences · last seen $(relative_time "$last_seen")"
     echo ""
@@ -545,10 +624,36 @@ cmd_show() {
   echo "Error group #$(echo "$g" | jq -r '.id')"
   echo "  Class:        $(echo "$g" | jq -r '.error_class')"
   echo "  Status:       $(status_badge "$(echo "$g" | jq -r '.status')")"
+  echo "  Workflow:     $(workflow_badge "$(echo "$g" | jq -r '.workflow_state // "untriaged"')")"
   echo "  Message:      $(echo "$g" | jq -r '.message // ""')"
   echo "  Occurrences:  $(echo "$g" | jq -r '.occurrences_count')"
   echo "  First seen:   $(echo "$g" | jq -r '.first_seen_at')"
   echo "  Last seen:    $(echo "$g" | jq -r '.last_seen_at')"
+
+  local activity_count
+  activity_count=$(echo "$data" | jq '(.activity // []) | length')
+  if [ "$activity_count" -gt 0 ]; then
+    echo ""
+    echo "  Recent activity:"
+    echo ""
+    echo "$data" | jq -c '(.activity // [])[]' | while read -r item; do
+      local kind actor source created_at from_value to_value body
+      kind=$(echo "$item" | jq -r '.kind')
+      actor=$(echo "$item" | jq -r '.actor_label // "system"')
+      source=$(echo "$item" | jq -r '.source // "unknown"')
+      created_at=$(echo "$item" | jq -r '.created_at')
+      from_value=$(echo "$item" | jq -r '.from_value // empty')
+      to_value=$(echo "$item" | jq -r '.to_value // empty')
+      body=$(echo "$item" | jq -r '.body // empty')
+
+      echo "    ${created_at}  ${kind} by ${actor} via ${source}"
+      if [ -n "$from_value" ] || [ -n "$to_value" ]; then
+        echo "      ${from_value:-none} → ${to_value:-none}"
+      fi
+      [ -n "$body" ] && echo "      $(shorten "$body" 96)"
+      echo ""
+    done
+  fi
 
   local occ_count
   occ_count=$(echo "$data" | jq '.occurrences | length')
@@ -581,26 +686,87 @@ cmd_show() {
 
 cmd_resolve() {
   local id="${1:-}"; [ -z "$id" ] && die "Usage: oopsie resolve <error_group_id>"
+  shift || true
+  parse_text_options note "$@"
   resolve_connection
   scope_project
-  api PATCH "/api/v1/error_groups/$id/resolve" >/dev/null
+  if [ "$TEXT_SOURCE_COUNT" -gt 0 ]; then
+    local body
+    body=$(jq -n --arg note "$TEXT_VALUE" '{note: $note}')
+    api_json PATCH "/api/v1/error_groups/$id/resolve" "$body" >/dev/null
+  else
+    api PATCH "/api/v1/error_groups/$id/resolve" >/dev/null
+  fi
   echo "Resolved error group #${id}."
 }
 
 cmd_ignore() {
   local id="${1:-}"; [ -z "$id" ] && die "Usage: oopsie ignore <error_group_id>"
+  shift || true
+  parse_text_options note "$@"
   resolve_connection
   scope_project
-  api PATCH "/api/v1/error_groups/$id/ignore" >/dev/null
+  if [ "$TEXT_SOURCE_COUNT" -gt 0 ]; then
+    local body
+    body=$(jq -n --arg note "$TEXT_VALUE" '{note: $note}')
+    api_json PATCH "/api/v1/error_groups/$id/ignore" "$body" >/dev/null
+  else
+    api PATCH "/api/v1/error_groups/$id/ignore" >/dev/null
+  fi
   echo "Ignored error group #${id}."
 }
 
 cmd_reopen() {
   local id="${1:-}"; [ -z "$id" ] && die "Usage: oopsie reopen <error_group_id>"
+  shift || true
+  parse_text_options note "$@"
   resolve_connection
   scope_project
-  api PATCH "/api/v1/error_groups/$id/unresolve" >/dev/null
+  if [ "$TEXT_SOURCE_COUNT" -gt 0 ]; then
+    local body
+    body=$(jq -n --arg note "$TEXT_VALUE" '{note: $note}')
+    api_json PATCH "/api/v1/error_groups/$id/unresolve" "$body" >/dev/null
+  else
+    api PATCH "/api/v1/error_groups/$id/unresolve" >/dev/null
+  fi
   echo "Reopened error group #${id}."
+}
+
+cmd_state() {
+  local id="${1:-}" state="${2:-}"
+  if [ -z "$id" ] || [ -z "$state" ]; then
+    die "Usage: oopsie state <error_group_id> <workflow_state> [--note <text>|--note-stdin|--note-file <path>]"
+  fi
+  shift 2
+  parse_text_options note "$@"
+
+  local body
+  if [ "$TEXT_SOURCE_COUNT" -gt 0 ]; then
+    body=$(jq -n --arg workflow_state "$state" --arg note "$TEXT_VALUE" '{workflow_state: $workflow_state, note: $note}')
+  else
+    body=$(jq -n --arg workflow_state "$state" '{workflow_state: $workflow_state}')
+  fi
+
+  resolve_connection
+  scope_project
+  api_json PATCH "/api/v1/error_groups/$id/workflow_state" "$body" >/dev/null
+  echo "Set error group #${id} workflow state to ${state}."
+}
+
+cmd_note() {
+  local id="${1:-}"
+  [ -z "$id" ] && die "Usage: oopsie note <error_group_id> --body <text>|--body-stdin|--body-file <path>"
+  shift || true
+  parse_text_options body "$@"
+  require_text_source "Usage: oopsie note <error_group_id> --body <text>|--body-stdin|--body-file <path>"
+
+  local body
+  body=$(jq -n --arg body "$TEXT_VALUE" '{body: $body}')
+
+  resolve_connection
+  scope_project
+  api_json POST "/api/v1/error_groups/$id/notes" "$body" >/dev/null
+  echo "Added note to error group #${id}."
 }
 
 # ── Notification commands ───────────────────────────────────────────────
@@ -747,11 +913,15 @@ Info:
   oopsie project                               Summary of the active project
 
 Errors:
-  oopsie errors [--status unresolved|resolved|ignored] [--limit N] [--offset N]
+  oopsie errors [--status unresolved|resolved|ignored] [--workflow-state untriaged|looking|in_progress|blocked|ready_to_resolve] [--limit N] [--offset N]
   oopsie show <id>                             Full details + recent occurrences
-  oopsie resolve <id>                          Mark resolved
-  oopsie ignore <id>                           Archive
-  oopsie reopen <id>                           Reopen
+  oopsie state <id> <workflow_state> [--note TEXT|--note-stdin|--note-file PATH]
+                                                Set agent workflow state without changing lifecycle status
+  oopsie note <id> --body TEXT|--body-stdin|--body-file PATH
+                                                Add an investigation note
+  oopsie resolve <id> [--note TEXT]             Mark resolved
+  oopsie ignore <id> [--note TEXT]              Archive
+  oopsie reopen <id> [--note TEXT]              Reopen
 
 Notifications:
   oopsie notifications                          List notification rules
@@ -811,6 +981,8 @@ case "$command" in
   project)              cmd_project ;;
   errors)               cmd_errors "$@" ;;
   show)                 cmd_show "$@" ;;
+  state)                cmd_state "$@" ;;
+  note)                 cmd_note "$@" ;;
   resolve)              cmd_resolve "$@" ;;
   ignore)               cmd_ignore "$@" ;;
   reopen)               cmd_reopen "$@" ;;

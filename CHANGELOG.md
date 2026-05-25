@@ -2,6 +2,18 @@
 
 All notable changes to Oopsie will be documented in this file.
 
+## [0.1.4.0] - 2026-05-25
+
+### Added
+- Error groups now have a separate agent workflow state (`untriaged`, `looking`, `in_progress`, `blocked`, `ready_to_resolve`) so agents can coordinate without changing lifecycle status.
+- Error group notes and activity history record workflow changes, lifecycle status changes, actor/provenance, and timestamps.
+- Rails UI, JSON API, and `cli/oopsie` now support workflow-state updates and investigation notes.
+- `cli/oopsie` v0.4.0 adds `state`, `note`, `errors --workflow-state`, activity display in `show`, and optional `--note` evidence on resolve/ignore/reopen.
+
+### Changed
+- Resolve, ignore, reopen, and resolved-regression reopen flows keep their existing lifecycle semantics while recording status-history activity.
+- Agent skill docs now recommend claiming with workflow state and notes before resolving or ignoring production errors.
+
 ## [0.1.3.1] - 2026-04-29
 
 ### Added

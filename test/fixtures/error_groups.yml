@@ -4,6 +4,8 @@ nomethoderror:
   error_class: NoMethodError
   message: "undefined method 'foo' for nil"
   status: 0
+  workflow_state: 0
+  workflow_state_changed_at: <%= 2.days.ago.to_fs(:db) %>
   occurrences_count: 3
   first_seen_at: <%= 2.days.ago.to_fs(:db) %>
   last_seen_at: <%= 1.hour.ago.to_fs(:db) %>
@@ -14,6 +16,8 @@ resolved_error:
   error_class: ArgumentError
   message: "wrong number of arguments"
   status: 1
+  workflow_state: 0
+  workflow_state_changed_at: <%= 5.days.ago.to_fs(:db) %>
   occurrences_count: 1
   first_seen_at: <%= 5.days.ago.to_fs(:db) %>
   last_seen_at: <%= 3.days.ago.to_fs(:db) %>
@@ -24,6 +28,8 @@ otherapp_resolved:
   error_class: RuntimeError
   message: "something went wrong"
   status: 1
+  workflow_state: 0
+  workflow_state_changed_at: <%= 3.days.ago.to_fs(:db) %>
   occurrences_count: 2
   first_seen_at: <%= 3.days.ago.to_fs(:db) %>
   last_seen_at: <%= 1.day.ago.to_fs(:db) %>

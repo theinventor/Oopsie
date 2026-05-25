@@ -90,12 +90,17 @@ oopsie project [--project <name>]               # summary of one project
 
 ### Errors
 ```bash
-oopsie errors [--status unresolved|resolved|ignored] [--limit N] [--offset N] [--project <name>]
+oopsie errors [--status unresolved|resolved|ignored] [--workflow-state untriaged|looking|in_progress|blocked|ready_to_resolve] [--limit N] [--offset N] [--project <name>]
 oopsie show <error_group_id> [--project <name>]
-oopsie resolve <error_group_id> [--project <name>]
-oopsie ignore <error_group_id> [--project <name>]
-oopsie reopen <error_group_id> [--project <name>]
+oopsie state <error_group_id> <workflow_state> [--note <text>|--note-stdin|--note-file <path>] [--project <name>]
+oopsie note <error_group_id> --body <text>|--body-stdin|--body-file <path> [--project <name>]
+oopsie resolve <error_group_id> [--note <text>|--note-stdin|--note-file <path>] [--project <name>]
+oopsie ignore <error_group_id> [--note <text>|--note-stdin|--note-file <path>] [--project <name>]
+oopsie reopen <error_group_id> [--note <text>|--note-stdin|--note-file <path>] [--project <name>]
 ```
+
+Workflow states are separate from lifecycle status:
+`untriaged`, `looking`, `in_progress`, `blocked`, and `ready_to_resolve`.
 
 ### Notifications
 ```bash
@@ -122,8 +127,10 @@ Canonical events are `new_error` and `regression`. The CLI also accepts aliases
 2. **Fetch unresolved**: `oopsie errors --status unresolved --project <name>`
 3. **Inspect**: `oopsie show <id>` for stack traces, file/line/method, context, environment.
 4. **Locate**: use `first_line` (file, line, method) from occurrences to jump to the bug in the current project's codebase.
-5. **Diagnose and fix**: read the relevant source files, understand the bug, implement a fix.
-6. **After fixing**: ask whether to `oopsie resolve <id>`.
+5. **Claim workflow state**: before work, run `oopsie state <id> looking --note "starting investigation"` or `oopsie state <id> in_progress --note "implementing fix"`.
+6. **Diagnose and fix**: read the relevant source files, understand the bug, implement a fix.
+7. **Record evidence**: use `oopsie note <id> --body "..."` for repro steps, cause, PR, deploy, and verification details.
+8. **After fixing**: ask whether to `oopsie resolve <id> --note "..."` or `oopsie ignore <id> --note "..."`.
 
 ## Handling $ARGUMENTS
 
@@ -131,6 +138,8 @@ When `/oopsie` is invoked, map arguments to commands:
 - `/oopsie` — summary: `oopsie whoami` then `oopsie errors --status unresolved --limit 10` (scoping if pinned)
 - `/oopsie errors` — `oopsie errors --status unresolved`
 - `/oopsie show 42` — `oopsie show 42`
+- `/oopsie state 42 in_progress` — `oopsie state 42 in_progress`
+- `/oopsie note 42 found bad params` — `oopsie note 42 --body "found bad params"`
 - `/oopsie fix` or `/oopsie what's broken` — fetch unresolved errors and start investigating
 - `/oopsie resolve 42` — `oopsie resolve 42`
 - `/oopsie setup` — walk through `oopsie config add`

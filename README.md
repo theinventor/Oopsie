@@ -87,6 +87,8 @@ oopsie whoami                     # what am I logged in as?
 oopsie projects                   # list everything I can access
 oopsie errors --status unresolved # what's broken?
 oopsie show 42                    # full details + stack traces
+oopsie state 42 looking --note "Checking recent deploys"
+oopsie note 42 --body "Reproduced locally with account 123"
 oopsie resolve 42                 # mark fixed
 
 # Notification rules
@@ -181,9 +183,28 @@ Authenticated with a Bearer token. Project-scoped endpoints need a project conte
 | `POST`   | `/api/v1/notification_rules` | Create a notification rule (`channel`, `destination`, optional `events`) |
 | `GET`    | `/api/v1/error_groups` | List error groups (`?status=`, `?limit=`, `?offset=`) |
 | `GET`    | `/api/v1/error_groups/:id` | Group details + recent occurrences |
+| `PATCH`  | `/api/v1/error_groups/:id/workflow_state` | Set agent workflow state (`workflow_state`, optional `note`) |
+| `POST`   | `/api/v1/error_groups/:id/notes` | Add an investigation note (`body`) |
 | `PATCH`  | `/api/v1/error_groups/:id/resolve` | Mark resolved |
 | `PATCH`  | `/api/v1/error_groups/:id/ignore` | Archive (ignore) |
 | `PATCH`  | `/api/v1/error_groups/:id/unresolve` | Reopen |
+
+### Agent triage workflow
+
+Oopsie keeps lifecycle status and agent workflow state separate. Use
+`unresolved`, `resolved`, and `ignored` only for the real error lifecycle.
+Use workflow state for coordination:
+
+| Workflow state | Use it when |
+|----------------|-------------|
+| `untriaged` | Nobody has started looking yet |
+| `looking` | An agent is inspecting the group |
+| `in_progress` | A fix is being implemented or verified |
+| `blocked` | The group needs external input or cannot be acted on yet |
+| `ready_to_resolve` | Evidence says the group can be resolved or ignored |
+
+Agents should set a workflow state first, add notes with evidence, and only call
+`resolve` or `ignore` after the note trail explains why.
 
 ### curl Example
 
