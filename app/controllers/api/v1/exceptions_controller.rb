@@ -29,7 +29,14 @@ module Api
             last_seen_at: Time.current,
             message: error[:message].presence || error_group.message
           )
-          error_group.update!(status: :unresolved) if was_resolved
+          if was_resolved
+            error_group.transition_status!(
+              :unresolved,
+              actor: { kind: "system", label: "regression detector" },
+              source: "api",
+              note: "Reopened automatically because a resolved error occurred again."
+            )
+          end
         else
           is_new_group = true
           error_group = @project.error_groups.create!(

@@ -56,11 +56,27 @@ class Api::V1::ExceptionsControllerTest < ActionDispatch::IntegrationTest
     group = ErrorGroup.find(JSON.parse(response.body)["group_id"])
     group.update!(status: :resolved)
 
-    post api_v1_exceptions_url, params: @valid_payload.to_json, headers: @headers
+    assert_difference "ErrorGroupNote.status_change.count", 1 do
+      post api_v1_exceptions_url, params: @valid_payload.to_json, headers: @headers
+    end
     assert_response :created
 
     group.reload
     assert_equal "unresolved", group.status
+    assert_equal "untriaged", group.workflow_state
+    assert_match "resolved error occurred again", group.error_group_notes.status_change.last.body
+  end
+
+  test "does not reopen ignored error group on new occurrence" do
+    post api_v1_exceptions_url, params: @valid_payload.to_json, headers: @headers
+    group = ErrorGroup.find(JSON.parse(response.body)["group_id"])
+    group.update!(status: :ignored)
+
+    post api_v1_exceptions_url, params: @valid_payload.to_json, headers: @headers
+    assert_response :created
+
+    group.reload
+    assert_equal "ignored", group.status
   end
 
   test "returns 401 without authorization header" do

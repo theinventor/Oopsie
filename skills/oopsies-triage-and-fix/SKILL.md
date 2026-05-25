@@ -2,7 +2,7 @@
 name: oopsies-triage-and-fix
 description: |
   Triage exceptions from the Oopsie error tracker for the current project, pick
-  the most urgent one (or the cluster that fits in a single PR), mark it resolved,
+  the most urgent one (or the cluster that fits in a single PR), claim it with workflow state,
   fix it, then run /review, /qa, /ship, and /land without stopping. Use when the
   user says "triage oopsies", "fix the exceptions", "handle production errors",
   "clean up oopsie", "fix prod bugs", or any request that means "look at what's
@@ -34,7 +34,13 @@ But if you don't have a clear idea, suggest something and ask the user what they
 
 ## 4. Start the fix
 
-Next you start working on it. When you start working on it, **mark it as resolved in Oopsie** so another user doesn't go try to fix the same issue! Go ahead and do a fix like you normally would.
+Next you start working on it. When you start working on it, set workflow state instead of lifecycle status so another user doesn't duplicate work:
+
+```bash
+oopsie state <id> in_progress --note "Starting fix in <repo/branch>."
+```
+
+Use `oopsie note <id> --body "..."` as you find evidence. Do **not** mark it resolved until the fix is landed/deployed or the user explicitly approves resolution.
 
 ## 5. Go all the way without stopping
 
@@ -42,6 +48,6 @@ Next you start working on it. When you start working on it, **mark it as resolve
 
 ## 6. Success
 
-If you did this right, and there was only one bug, you just found it, resolved it in oopsie, fixed it, reviewed it, qa'd it, and got it merged, and it's deploying on merge — or you found deploy instructions for the project that said otherwise. Good job! This is success!
+If you did this right, and there was only one bug, you found it, claimed it with workflow state, left evidence notes, fixed it, reviewed it, qa'd it, and got it merged, and it's deploying on merge — or you found deploy instructions for the project that said otherwise. Resolve or ignore the Oopsie group only with an explicit note once that outcome is true.
 
 **A lot of chatting and questions is not success, that's not a great UX.**

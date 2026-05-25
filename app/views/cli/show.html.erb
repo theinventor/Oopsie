@@ -42,7 +42,10 @@ sudo mv oopsie /usr/local/bin/  # optional: add to PATH</code></pre>
       <tr><td><code>oopsie project</code></td><td>Summary of the active project (pinned or <code>--project</code>)</td></tr>
       <tr><td><code>oopsie errors</code></td><td>List error groups for the active project</td></tr>
       <tr><td><code>oopsie errors --status resolved</code></td><td>Filter by status (unresolved/resolved/ignored)</td></tr>
+      <tr><td><code>oopsie errors --workflow-state blocked</code></td><td>Filter by agent workflow state</td></tr>
       <tr><td><code>oopsie show &lt;id&gt;</code></td><td>Show error group details and recent occurrences</td></tr>
+      <tr><td><code>oopsie state &lt;id&gt; in_progress --note "..."</code></td><td>Set workflow state without resolving or ignoring</td></tr>
+      <tr><td><code>oopsie note &lt;id&gt; --body "..."</code></td><td>Add investigation evidence</td></tr>
       <tr><td><code>oopsie resolve &lt;id&gt;</code></td><td>Mark as resolved</td></tr>
       <tr><td><code>oopsie ignore &lt;id&gt;</code></td><td>Archive (ignore) an error group</td></tr>
       <tr><td><code>oopsie reopen &lt;id&gt;</code></td><td>Reopen a resolved or ignored error group</td></tr>
@@ -87,12 +90,23 @@ oopsie config list</code></pre>
     </thead>
     <tbody>
       <tr><td><code>GET</code></td><td><code>/api/v1/project</code></td><td>One project (project key) or all accessible projects (user key)</td></tr>
-      <tr><td><code>GET</code></td><td><code>/api/v1/error_groups</code></td><td>List error groups (?status=, ?limit=, ?offset=)</td></tr>
-      <tr><td><code>GET</code></td><td><code>/api/v1/error_groups/:id</code></td><td>Error group details + occurrences</td></tr>
+      <tr><td><code>GET</code></td><td><code>/api/v1/error_groups</code></td><td>List error groups (?status=, ?workflow_state=, ?limit=, ?offset=)</td></tr>
+      <tr><td><code>GET</code></td><td><code>/api/v1/error_groups/:id</code></td><td>Error group details + occurrences + activity</td></tr>
+      <tr><td><code>PATCH</code></td><td><code>/api/v1/error_groups/:id/workflow_state</code></td><td>Set workflow state with optional note</td></tr>
+      <tr><td><code>POST</code></td><td><code>/api/v1/error_groups/:id/notes</code></td><td>Add investigation note</td></tr>
       <tr><td><code>PATCH</code></td><td><code>/api/v1/error_groups/:id/resolve</code></td><td>Mark resolved</td></tr>
       <tr><td><code>PATCH</code></td><td><code>/api/v1/error_groups/:id/ignore</code></td><td>Archive (ignore)</td></tr>
       <tr><td><code>PATCH</code></td><td><code>/api/v1/error_groups/:id/unresolve</code></td><td>Reopen</td></tr>
     </tbody>
   </table>
   <p class="text-secondary">All endpoints require <code>Authorization: Bearer YOUR_KEY</code>. When calling project-scoped endpoints with a User API Key, include <code>project_id</code> as a query param or <code>X-Project-Id</code> as a header.</p>
+</div>
+
+<div class="cli-section card">
+  <h2>Agent Triage Flow</h2>
+  <p>Use workflow state for coordination and lifecycle status for truth. Agents should set <code>looking</code> or <code>in_progress</code> before work, use <code>blocked</code> when external input is needed, add evidence with <code>oopsie note</code>, and resolve or ignore only when the note trail explains why.</p>
+  <pre><code>oopsie state 42 looking --note "Reading recent occurrences"
+oopsie note 42 --body "Reproduced locally with account 123"
+oopsie state 42 ready_to_resolve --note "Fix deployed and verified"
+oopsie resolve 42 --note "No new occurrences after deploy"</code></pre>
 </div>

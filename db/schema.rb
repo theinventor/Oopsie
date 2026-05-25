@@ -10,7 +10,23 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_05_17_052400) do
+ActiveRecord::Schema[8.1].define(version: 2026_05_25_192500) do
+  create_table "error_group_notes", force: :cascade do |t|
+    t.string "actor_kind", default: "system", null: false
+    t.string "actor_label", default: "system", null: false
+    t.text "body"
+    t.datetime "created_at", null: false
+    t.integer "error_group_id", null: false
+    t.string "from_value"
+    t.integer "kind", default: 0, null: false
+    t.string "source", default: "unknown", null: false
+    t.string "to_value"
+    t.datetime "updated_at", null: false
+    t.index ["error_group_id", "created_at"], name: "index_error_group_notes_on_error_group_id_and_created_at"
+    t.index ["error_group_id", "kind", "created_at"], name: "idx_on_error_group_id_kind_created_at_46fdc2d8ec"
+    t.index ["error_group_id"], name: "index_error_group_notes_on_error_group_id"
+  end
+
   create_table "error_groups", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.string "error_class", null: false
@@ -22,8 +38,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_17_052400) do
     t.integer "project_id", null: false
     t.integer "status", default: 0, null: false
     t.datetime "updated_at", null: false
+    t.integer "workflow_state", default: 0, null: false
+    t.datetime "workflow_state_changed_at", null: false
     t.index ["project_id", "fingerprint"], name: "index_error_groups_on_project_id_and_fingerprint", unique: true
     t.index ["project_id", "status", "last_seen_at"], name: "index_error_groups_on_project_id_and_status_and_last_seen_at"
+    t.index ["project_id", "workflow_state", "last_seen_at"], name: "index_error_groups_on_project_workflow_last_seen"
     t.index ["project_id"], name: "index_error_groups_on_project_id"
   end
 
@@ -83,6 +102,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_17_052400) do
     t.index ["email_address"], name: "index_users_on_email_address", unique: true
   end
 
+  add_foreign_key "error_group_notes", "error_groups"
   add_foreign_key "error_groups", "projects"
   add_foreign_key "notification_rules", "projects"
   add_foreign_key "occurrences", "error_groups"
