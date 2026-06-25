@@ -309,6 +309,12 @@ The `occurrences_count` on each error group is a **lifetime total** — it refle
 
 ## Deploy
 
+### Hosted Oopsie production
+
+The hosted production instance at `https://oopsie.sunflower-vacations.com` deploys from the `main` branch. For normal Symphony/Codex release work, merge the approved pull request into `main` and then verify production with `/up` plus the feature-specific smoke checks. Do **not** treat the checked-in Kamal files as the normal deploy path for this hosted instance, and do not block a release on interactive Kamal SSH access.
+
+### Self-hosted Oopsie
+
 Oopsie is a standard Rails app. Deploy it anywhere you'd deploy Rails:
 
 ### Fly.io

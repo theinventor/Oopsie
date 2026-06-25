@@ -1,3 +1,9 @@
+# Optional self-hosted Kamal example.
+#
+# Hosted Oopsie production (https://oopsie.sunflower-vacations.com) deploys from the
+# main branch. Normal release work should merge the approved PR and verify production;
+# do not block hosted releases on interactive Kamal SSH access.
+
 # Name of your application. Used to uniquely configure containers.
 service: oopsie
 
