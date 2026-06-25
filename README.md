@@ -247,6 +247,7 @@ All configuration is via environment variables:
 | `POSTMARK_API_TOKEN` | — | Postmark server API token for outbound email |
 | `OOPSIE_ADMIN_EMAIL` | `admin@example.com` | Initial admin email (used on first `db:seed`) |
 | `OOPSIE_ADMIN_PASSWORD` | *(random)* | Initial admin password (printed on first run) |
+| `OOPSIE_EXCEPTION_INGEST_CORS_ORIGINS` | `https://nerf-spring-break.netlify.app` | Comma-separated browser origins allowed to POST exceptions to `/api/v1/exceptions` |
 | `OOPSIE_RETENTION_DAYS` | `90` | Days to keep occurrence data before cleanup |
 | `OOPSIE_SKIP_DEMO` | — | Set to `1` to skip demo data in `db:seed` |
 
