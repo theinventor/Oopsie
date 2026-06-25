@@ -249,6 +249,7 @@ All configuration is via environment variables:
 | `OOPSIE_ADMIN_PASSWORD` | *(random)* | Initial admin password (printed on first run) |
 | `OOPSIE_RETENTION_DAYS` | `90` | Days to keep occurrence data before cleanup |
 | `OOPSIE_SKIP_DEMO` | — | Set to `1` to skip demo data in `db:seed` |
+| `OOPSIE_EXCEPTION_INGEST_CORS_ORIGINS` | `https://nerf-spring-break.netlify.app` | Comma-separated browser origins allowed to POST to `/api/v1/exceptions` |
 
 See `.env.example` for a starter template.
 

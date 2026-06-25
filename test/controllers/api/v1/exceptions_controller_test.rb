@@ -1,6 +1,9 @@
 require "test_helper"
 
 class Api::V1::ExceptionsControllerTest < ActionDispatch::IntegrationTest
+  ALLOWED_BROWSER_ORIGIN = "https://nerf-spring-break.netlify.app"
+  DISALLOWED_BROWSER_ORIGIN = "https://example.invalid"
+
   setup do
     @project = projects(:myapp)
     @headers = { "Authorization" => "Bearer #{@project.api_key}", "Content-Type" => "application/json" }
@@ -20,6 +23,54 @@ class Api::V1::ExceptionsControllerTest < ActionDispatch::IntegrationTest
       context: { action: "DesignsController#show" },
       server: { hostname: "web-1", pid: 12345, ruby_version: "4.0.2", rails_version: "8.1.3" }
     }
+  end
+
+  test "allows browser preflight from configured exception ingest origin" do
+    options api_v1_exceptions_url, headers: {
+      "Origin" => ALLOWED_BROWSER_ORIGIN,
+      "Access-Control-Request-Method" => "POST",
+      "Access-Control-Request-Headers" => "authorization, content-type"
+    }
+
+    assert_response :success
+    assert_equal ALLOWED_BROWSER_ORIGIN, response.headers["Access-Control-Allow-Origin"]
+    assert_includes response.headers["Access-Control-Allow-Methods"], "POST"
+    assert_includes response.headers["Access-Control-Allow-Headers"], "authorization"
+    assert_includes response.headers["Access-Control-Allow-Headers"], "content-type"
+    assert_nil response.headers["Access-Control-Allow-Credentials"]
+  end
+
+  test "does not allow browser preflight from unconfigured origin" do
+    options api_v1_exceptions_url, headers: {
+      "Origin" => DISALLOWED_BROWSER_ORIGIN,
+      "Access-Control-Request-Method" => "POST",
+      "Access-Control-Request-Headers" => "authorization, content-type"
+    }
+
+    assert_not_equal DISALLOWED_BROWSER_ORIGIN, response.headers["Access-Control-Allow-Origin"]
+    assert_nil response.headers["Access-Control-Allow-Credentials"]
+  end
+
+  test "authenticated post from configured browser origin returns cors headers" do
+    assert_difference [ "ErrorGroup.count", "Occurrence.count" ], 1 do
+      post api_v1_exceptions_url,
+        params: @valid_payload.to_json,
+        headers: @headers.merge("Origin" => ALLOWED_BROWSER_ORIGIN)
+    end
+
+    assert_response :created
+    assert_equal ALLOWED_BROWSER_ORIGIN, response.headers["Access-Control-Allow-Origin"]
+    assert_nil response.headers["Access-Control-Allow-Credentials"]
+  end
+
+  test "configured browser origin post still requires authorization" do
+    post api_v1_exceptions_url,
+      params: @valid_payload.to_json,
+      headers: { "Origin" => ALLOWED_BROWSER_ORIGIN, "Content-Type" => "application/json" }
+
+    assert_response :unauthorized
+    assert_equal "Invalid API key", JSON.parse(response.body)["error"]
+    assert_equal ALLOWED_BROWSER_ORIGIN, response.headers["Access-Control-Allow-Origin"]
   end
 
   test "creates new error group and occurrence" do
