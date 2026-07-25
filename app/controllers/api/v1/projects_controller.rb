@@ -20,20 +20,14 @@ module Api
       end
 
       def create
-        name = project_params[:name].to_s.strip
-        existing_projects = Project.where(name: name)
+        name = normalized_project_name
+        project = Project.create!(name: name)
 
-        if existing_projects.any?
-          return render_existing_project_or_conflict(existing_projects)
-        end
-
-        project = Project.new(name: name)
-
-        if project.save
-          render json: { project: serialize_project(project, include_api_key: true), created: true }, status: :created
-        else
-          render_validation_errors(project)
-        end
+        render json: { project: serialize_project(project, include_api_key: true), created: true }, status: :created
+      rescue ActiveRecord::RecordInvalid => error
+        render_create_record_invalid(error.record, name)
+      rescue ActiveRecord::RecordNotUnique
+        render_existing_project_or_conflict(Project.where(name: name))
       end
 
       def update
@@ -44,20 +38,13 @@ module Api
         end
 
         name = name.to_s.strip
-        duplicate = Project.where(name: name).where.not(id: @admin_project.id).first
+        @admin_project.update!(name: name)
 
-        if duplicate
-          return render json: {
-            error: "Project name already exists",
-            project: serialize_project(duplicate)
-          }, status: :conflict
-        end
-
-        if @admin_project.update(name: name)
-          render json: { project: serialize_project(@admin_project) }
-        else
-          render_validation_errors(@admin_project)
-        end
+        render json: { project: serialize_project(@admin_project) }
+      rescue ActiveRecord::RecordInvalid => error
+        render_update_record_invalid(error.record, name)
+      rescue ActiveRecord::RecordNotUnique
+        render_project_name_conflict(Project.find_by(name: name))
       end
 
       def disable
@@ -82,6 +69,10 @@ module Api
         source.permit(:name)
       end
 
+      def normalized_project_name
+        project_params[:name].to_s.strip
+      end
+
       def if_missing?
         ActiveModel::Type::Boolean.new.cast(params[:if_missing])
       end
@@ -98,6 +89,29 @@ module Api
           error: "Project name already exists",
           matching_project_ids: projects.pluck(:id)
         }, status: :conflict
+      end
+
+      def render_create_record_invalid(project, name)
+        if project.errors.of_kind?(:name, :taken)
+          render_existing_project_or_conflict(Project.where(name: name))
+        else
+          render_validation_errors(project)
+        end
+      end
+
+      def render_update_record_invalid(project, name)
+        if project.errors.of_kind?(:name, :taken)
+          render_project_name_conflict(Project.find_by(name: name))
+        else
+          render_validation_errors(project)
+        end
+      end
+
+      def render_project_name_conflict(project)
+        payload = { error: "Project name already exists" }
+        payload[:project] = serialize_project(project) if project
+
+        render json: payload, status: :conflict
       end
 
       def render_validation_errors(project)

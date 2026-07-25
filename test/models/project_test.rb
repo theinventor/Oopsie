@@ -13,6 +13,31 @@ class ProjectTest < ActiveSupport::TestCase
     assert_includes project.errors[:name], "can't be blank"
   end
 
+  test "requires unique name" do
+    Project.create!(name: "UniqueApp")
+
+    duplicate = Project.new(name: "UniqueApp")
+
+    assert_not duplicate.valid?
+    assert_includes duplicate.errors[:name], "has already been taken"
+  end
+
+  test "database enforces unique names for concurrent creates" do
+    Project.create!(name: "RaceApp")
+
+    assert_raises ActiveRecord::RecordNotUnique do
+      Project.insert_all!([
+        {
+          name: "RaceApp",
+          api_key: SecureRandom.hex(32),
+          status: Project.statuses[:active],
+          created_at: Time.current,
+          updated_at: Time.current
+        }
+      ])
+    end
+  end
+
   test "generates unique api_key on create" do
     p1 = Project.create!(name: "App1")
     p2 = Project.create!(name: "App2")

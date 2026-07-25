@@ -186,7 +186,9 @@ When using a user key, also pass `X-Project-Id: <id>` or `?project_id=<id>`.
 
 Project administration requires a **user key**. The response to project creation
 includes the new project's project key so an agent can immediately configure a
-client app without visiting the web UI.
+client app without visiting the web UI. Project names are unique; pass
+`if_missing: true` when setup scripts should reuse one existing project with the
+same name instead of failing with `409 Conflict`.
 
 ```bash
 curl -X POST https://your-oopsie.com/api/v1/projects \

@@ -1084,6 +1084,7 @@ Info:
 
 Project administration (User API key required):
   oopsie project create <name> [--if-missing]  Create a project and print its project key
+                                                Names are unique; --if-missing reuses one exact match
   oopsie project update <project> --name <name>
                                                 Rename a project by id or unambiguous name
   oopsie project disable <project>              Disable exception ingest for a project

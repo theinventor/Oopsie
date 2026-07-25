@@ -5,7 +5,7 @@ class Project < ApplicationRecord
 
   enum :status, { active: 0, disabled: 1 }
 
-  validates :name, presence: true
+  validates :name, presence: true, uniqueness: true
   validates :api_key, presence: true, uniqueness: true
   validates :status, presence: true
 

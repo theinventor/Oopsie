@@ -72,6 +72,27 @@ class Api::V1::ProjectsControllerTest < ActionDispatch::IntegrationTest
     assert_equal @project.api_key, json.dig("project", "api_key")
   end
 
+  test "create maps unique index race to idempotent existing project response" do
+    original_create = Project.method(:create!)
+    Project.define_singleton_method(:create!) do |*_args, **_kwargs|
+      raise ActiveRecord::RecordNotUnique.new("projects.name")
+    end
+
+    begin
+      post "/api/v1/projects",
+        params: { project: { name: @project.name }, if_missing: true }.to_json,
+        headers: @user_headers
+    ensure
+      Project.define_singleton_method(:create!, original_create)
+    end
+
+    assert_response :success
+    json = JSON.parse(response.body)
+    assert_equal false, json["created"]
+    assert_equal @project.id, json.dig("project", "id")
+    assert_equal @project.api_key, json.dig("project", "api_key")
+  end
+
   test "create rejects duplicate project name without if missing" do
     assert_no_difference "Project.count" do
       post "/api/v1/projects",
