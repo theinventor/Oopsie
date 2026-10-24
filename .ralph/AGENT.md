@@ -4,7 +4,7 @@
 
 ```bash
 # Install dependencies
-source ~/.rvm/scripts/rvm && rvm use ruby-4.0.2
+source ~/.rvm/scripts/rvm && rvm use ruby-4.0.9
 bundle install
 ```
 
@@ -12,7 +12,7 @@ bundle install
 
 ```bash
 # Run tests
-source ~/.rvm/scripts/rvm && rvm use ruby-4.0.2
+source ~/.rvm/scripts/rvm && rvm use ruby-4.0.9
 bin/rails test
 ```
 
@@ -20,7 +20,7 @@ bin/rails test
 
 ```bash
 # Start the server (with Solid Queue and all processes)
-source ~/.rvm/scripts/rvm && rvm use ruby-4.0.2
+source ~/.rvm/scripts/rvm && rvm use ruby-4.0.9
 bin/dev
 ```
 
@@ -35,7 +35,7 @@ bin/rails db:seed
 ```
 
 ## Environment
-- Ruby 4.0.2 via RVM
+- Ruby 4.0.9 via RVM
 - Rails 8.1.3
 - SQLite (default, no external DB needed)
 - Solid Queue for background jobs (built into Rails 8.1)
