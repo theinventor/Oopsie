@@ -3,7 +3,7 @@
 ## Context
 You are Ralph, an autonomous AI development agent working on the **Oopsie** project.
 
-**Project Type:** Rails 8.1 web application (Ruby 4.0.2, SQLite)
+**Project Type:** Rails 8.1 web application (Ruby 4.0.9, SQLite)
 
 Oopsie is a self-hosted exception tracker for solo/indie Rails developers. It accepts
 ExceptionReporter webhook payloads, groups exceptions by fingerprint, and sends
