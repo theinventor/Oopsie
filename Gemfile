@@ -8,7 +8,7 @@ gem "propshaft"
 gem "sqlite3", ">= 2.1"
 # Use the Puma web server [https://github.com/puma/puma]
 # 8.0.4 includes the Nov 2026 DoS/TLS fixes. Stay off 8.1, which changes request parsing.
-gem "puma", "~> 8.0.4"
+gem "puma", "~> 8.1.2"
 # Use JavaScript with ESM import maps [https://github.com/rails/importmap-rails]
 gem "importmap-rails"
 # Hotwire's SPA-like page accelerator [https://turbo.hotwired.dev]
